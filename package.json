@@ -1,0 +1,20 @@
+{
+  "name": "ccxt-private-ws",
+  "version": "1.0.0",
+  "description": "CCXT compatible private websocket client",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "repository": "git@gitlab.com:invao-phase1/trading/ccxt-private-ws.git",
+  "author": "Christian Goltz <christian.goltz@invao.org>",
+  "license": "MIT",
+  "devDependencies": {
+    "nodemon": "^1.19.2",
+    "ts-node": "^8.4.1",
+    "typescript": "^3.6.3"
+  },
+  "scripts": {
+    "prepublish": "tsc",
+    "start": "tsc && node dist/index.js",
+    "dev": "nodemon --watch 'src/**/*.ts' --exec 'tsc'"
+  }
+}
