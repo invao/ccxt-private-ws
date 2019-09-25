@@ -201,12 +201,6 @@ export class bitfinex extends Exchange {
   protected onMessage = async (event: MessageEvent) => {
     const data: BitfinexMessage = JSON.parse(event.data);
 
-    console.log(event.data);
-    console.log(
-      data[1],
-      Object.values(BitfinexOrderMessageCommands),
-      Object.values(BitfinexTradeMessageCommands)
-    );
     if (isBitfinexOrderMessage(data)) {
       const order = this.parseOrder(data[2]);
       const type = this.parseOrderEventType(data[1]);
@@ -257,7 +251,6 @@ export class bitfinex extends Exchange {
       flags: 0
     };
     const payload = [0, 'on', null, orderData];
-    console.log('creating!!!!!', payload);
     this._ws.send(JSON.stringify(payload));
 
     return {
