@@ -108,6 +108,11 @@ export abstract class Exchange {
     await this.assertConnected();
   };
 
+  public disconnect = async () => {
+    this._connected = undefined;
+    this._ws.close();
+  };
+
   public getName = () => {
     return this._name;
   };
