@@ -83,6 +83,7 @@ export declare abstract class Exchange {
     getName: () => string;
     protected abstract onMessage(event: MessageEvent): void;
     private _onOpen;
+    private _onClose;
     private _onMessage;
     protected assertConnected: () => Promise<void>;
     protected setOrderCallback: (callback: SubscribeCallback) => void;

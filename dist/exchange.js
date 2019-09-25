@@ -61,6 +61,10 @@ var Exchange = /** @class */ (function () {
                                 resolve(true);
                                 _this._onOpen();
                             });
+                            _this._ws.addEventListener('close', function () {
+                                resolve(false);
+                                _this._onClose();
+                            });
                             _this._ws.addEventListener('error', function () {
                                 resolve(false);
                             });
@@ -85,6 +89,9 @@ var Exchange = /** @class */ (function () {
         };
         this._onOpen = function () {
             console.log("Connection to " + _this._name + " established.");
+        };
+        this._onClose = function () {
+            console.log("Connection to " + _this._name + " closed.");
         };
         this._onMessage = function (event) {
             _this.onMessage(event);
