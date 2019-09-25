@@ -99,6 +99,10 @@ export abstract class Exchange {
         resolve(true);
         this._onOpen();
       });
+      this._ws.addEventListener('close', () => {
+        resolve(false);
+        this._onClose();
+      });
       this._ws.addEventListener('error', () => {
         resolve(false);
       });
@@ -121,6 +125,10 @@ export abstract class Exchange {
 
   private _onOpen = () => {
     console.log(`Connection to ${this._name} established.`);
+  };
+
+  private _onClose = () => {
+    console.log(`Connection to ${this._name} closed.`);
   };
 
   private _onMessage = (event: MessageEvent) => {
