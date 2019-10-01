@@ -71,23 +71,10 @@ var Exchange = /** @class */ (function () {
                     case 1:
                         _a.sent();
                         this._connected = new Promise(function (resolve, reject) {
-                            _this._ws.addEventListener('open', function () {
-                                resolve(true);
-                                console.log("Connection to " + _this._name + " established.");
-                                if (_this.onOpen) {
-                                    _this.onOpen();
-                                }
-                            });
-                            _this._ws.addEventListener('close', function () {
-                                resolve(false);
-                                console.log("Connection to " + _this._name + " closed.");
-                                if (_this.onClose) {
-                                    _this.onClose();
-                                }
-                            });
-                            _this._ws.addEventListener('error', function () {
-                                resolve(false);
-                            });
+                            _this._resolveConnect = resolve;
+                            _this._ws.addEventListener('open', _this._onOpen);
+                            _this._ws.addEventListener('close', _this._onClose);
+                            _this._ws.addEventListener('error', _this._onError);
                             _this._ws.reconnect();
                         });
                         this._ws.addEventListener('message', this._onMessage);
@@ -103,6 +90,9 @@ var Exchange = /** @class */ (function () {
                 this._connected = undefined;
                 this._ws.close();
                 this._ws.removeEventListener('message', this._onMessage);
+                this._ws.removeEventListener('open', this._onOpen);
+                this._ws.removeEventListener('close', this._onClose);
+                this._ws.removeEventListener('error', this._onError);
                 return [2 /*return*/];
             });
         }); };
@@ -112,6 +102,32 @@ var Exchange = /** @class */ (function () {
         this._onMessage = function (event) {
             _this.debug("Event on " + _this.getName() + ": " + event.data);
             _this.onMessage(event);
+        };
+        this._onOpen = function () {
+            if (_this._resolveConnect) {
+                _this._resolveConnect(true);
+            }
+            ;
+            console.log("Connection to " + _this._name + " established.");
+            if (_this.onOpen) {
+                _this.onOpen();
+            }
+        };
+        this._onClose = function () {
+            if (_this._resolveConnect) {
+                _this._resolveConnect(false);
+            }
+            ;
+            console.log("Connection to " + _this._name + " closed.");
+            if (_this.onClose) {
+                _this.onClose();
+            }
+        };
+        this._onError = function () {
+            if (_this._resolveConnect) {
+                _this._resolveConnect(false);
+            }
+            ;
         };
         this.assertConnected = function () { return __awaiter(_this, void 0, void 0, function () {
             return __generator(this, function (_a) {

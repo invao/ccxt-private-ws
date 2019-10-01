@@ -88,6 +88,7 @@ export abstract class Exchange {
   protected _debug: boolean;
   protected _ccxtInstance: ccxt.Exchange;
   private _orderCallback?: SubscribeCallback;
+  private _resolveConnect?: Function;
 
   constructor(params: ExchangeConstructorParameters & ExchangeConstructorOptionalParameters) {
     this._name = params.name;
@@ -108,23 +109,10 @@ export abstract class Exchange {
     await this._ccxtInstance.loadMarkets();
 
     this._connected = new Promise((resolve, reject) => {
-      this._ws.addEventListener('open', () => {
-        resolve(true);
-        console.log(`Connection to ${this._name} established.`);
-        if (this.onOpen) {
-          this.onOpen();
-        }
-      });
-      this._ws.addEventListener('close', () => {
-        resolve(false);
-        console.log(`Connection to ${this._name} closed.`);
-        if (this.onClose) {
-          this.onClose();
-        }
-      });
-      this._ws.addEventListener('error', () => {
-        resolve(false);
-      });
+      this._resolveConnect = resolve;
+      this._ws.addEventListener('open', this._onOpen);
+      this._ws.addEventListener('close', this._onClose);
+      this._ws.addEventListener('error', this._onError);
       this._ws.reconnect();
     });
     this._ws.addEventListener('message', this._onMessage);
@@ -136,6 +124,9 @@ export abstract class Exchange {
     this._connected = undefined;
     this._ws.close();
     this._ws.removeEventListener('message', this._onMessage)
+    this._ws.removeEventListener('open', this._onOpen)
+    this._ws.removeEventListener('close', this._onClose)
+    this._ws.removeEventListener('error', this._onError)
   };
 
   public getName = () => {
@@ -150,6 +141,33 @@ export abstract class Exchange {
     this.debug(`Event on ${this.getName()}: ${event.data}`)
     this.onMessage(event);
   };
+
+  private _onOpen = () => {
+    if (this._resolveConnect) {
+      this._resolveConnect(true);
+    };
+
+    console.log(`Connection to ${this._name} established.`);
+    if (this.onOpen) {
+      this.onOpen();
+    }
+  };
+
+  private _onClose = () => {
+    if (this._resolveConnect) {
+      this._resolveConnect(false);
+    };
+    console.log(`Connection to ${this._name} closed.`);
+    if (this.onClose) {
+      this.onClose();
+    }
+  }
+
+  private _onError = () => {
+    if (this._resolveConnect) {
+      this._resolveConnect(false);
+    };
+  }
 
   protected assertConnected = async () => {
     if (!(await this._connected)) {

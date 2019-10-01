@@ -75,6 +75,7 @@ export declare abstract class Exchange {
     protected _debug: boolean;
     protected _ccxtInstance: ccxt.Exchange;
     private _orderCallback?;
+    private _resolveConnect?;
     constructor(params: ExchangeConstructorParameters & ExchangeConstructorOptionalParameters);
     subscribeOrders?({ callback }: {
         callback: SubscribeCallback;
@@ -93,6 +94,9 @@ export declare abstract class Exchange {
     protected onOpen?(): void;
     protected onClose?(): void;
     private _onMessage;
+    private _onOpen;
+    private _onClose;
+    private _onError;
     protected assertConnected: () => Promise<void>;
     protected setOrderCallback: (callback: SubscribeCallback) => void;
     protected onOrder: (event: OrderEvent) => void;
