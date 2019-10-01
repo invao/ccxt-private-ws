@@ -5,7 +5,8 @@ import {
   Order,
   OrderExecutionType,
   Trade,
-  OrderInput
+  OrderInput,
+  ExchangeConstructorOptionalParameters
 } from '../exchange';
 import crypto from 'crypto-js';
 import moment from 'moment';
@@ -111,7 +112,7 @@ export class bitfinex extends Exchange {
     limit: 'EXCHANGE LIMIT'
   };
 
-  constructor(params: BitfinexConstructorParams) {
+  constructor(params: BitfinexConstructorParams & ExchangeConstructorOptionalParameters) {
     super({ ...params, url: 'wss://api.bitfinex.com/ws/2', name: 'bitfinex' });
     this._orders = {};
     this._lock = new AsyncLock();
@@ -127,7 +128,7 @@ export class bitfinex extends Exchange {
     if (trades) {
       for (const trade of trades) {
         if (trade.fee) {
-          if (!fee) {
+          if (!fee || !fee.currency) {
             fee = {
               currency: trade.fee.currency,
               cost: trade.fee.cost
@@ -238,24 +239,26 @@ export class bitfinex extends Exchange {
 
   public createOrder = ({ order }: { order: OrderInput }) => {
     const clientId = order.clientId ? order.clientId : this.createClientId();
+    const marketId = this._ccxtInstance.market(order.symbol).id
     const orderData = {
       gid: 1,
       cid: parseInt(clientId),
       type: this._orderTypeMap[order.type],
-      symbol: `t${order.symbol
-        .split('/')
-        .join('')
-        .toLocaleUpperCase()}`,
+      symbol: `t${marketId}`,
       amount: order.side === 'buy' ? order.amount.toString() : (-1 * order.amount).toString(),
       price: order.price.toString(),
       flags: 0
     };
     const payload = [0, 'on', null, orderData];
     this._ws.send(JSON.stringify(payload));
+  };
 
-    return {
-      clientId: clientId.toString()
+  public cancelOrder = ({ id }: { id: string }) => {
+    const orderData = {
+      id
     };
+    const payload = [0, 'oc', null, orderData];
+    this._ws.send(JSON.stringify(payload));
   };
 
   private parseOrder = (data: BitfinexOrderMessageContent) => {
@@ -273,19 +276,23 @@ export class bitfinex extends Exchange {
     }
 
     const status = this.parseOrderStatus(data[13]);
+    let market = this._ccxtInstance.findMarket(data[3].substr(1, 6))
+    if (!market) {
+      market = { symbol: data[3].substr(1, 3) + '/' + data[3].substr(4, 3) }
+    }
 
     const order: Order = {
       id: data[0],
       clientId: data[2] ? data[2].toString() : undefined,
-      symbol: data[3],
+      symbol: market.symbol,
       timestamp: data[4],
       datetime: moment(data[4]).toISOString(),
       amount: Math.abs(data[7]),
       filled: Math.abs(data[7]) - Math.abs(data[6]),
       type,
       average: data[17],
-      cost: Math.abs(data[16] * data[7]),
-      price: data[16],
+      cost: Math.abs(data[17] * data[7]),
+      price: data[17],
       remaining: Math.abs(data[6]),
       side: data[7] > 0 ? 'buy' : 'sell',
       status

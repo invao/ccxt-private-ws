@@ -1,4 +1,6 @@
 import ReconnectingWebsocket from 'reconnecting-websocket';
+import ccxt from 'ccxt';
+import { ExchangeName } from '.';
 export declare type Trade = {
     id: string;
     timestamp: number;
@@ -51,9 +53,12 @@ export declare type OrderInput = {
 };
 export declare type SubscribeCallback = (event: OrderEvent) => void;
 export declare type ExchangeConstructorParameters = {
-    name: string;
+    name: ExchangeName;
     url: string;
     credentials: ExchangeCredentials;
+};
+export declare type ExchangeConstructorOptionalParameters = {
+    debug?: boolean;
 };
 export declare type ExchangeCredentials = {
     apiKey?: string;
@@ -67,25 +72,29 @@ export declare abstract class Exchange {
     private _connected?;
     protected _credentials: ExchangeCredentials;
     protected _random: Function;
+    protected _debug: boolean;
+    protected _ccxtInstance: ccxt.Exchange;
     private _orderCallback?;
-    constructor(params: ExchangeConstructorParameters);
-    abstract subscribeOrders({ callback }: {
+    constructor(params: ExchangeConstructorParameters & ExchangeConstructorOptionalParameters);
+    subscribeOrders?({ callback }: {
         callback: SubscribeCallback;
     }): void;
-    abstract createOrder({ order }: {
+    createOrder?({ order }: {
         order: OrderInput;
-    }): {
-        clientId?: string;
-    };
-    abstract createClientId(): string;
+    }): void;
+    cancelOrder?({ id }: {
+        id: string;
+    }): void;
+    createClientId?(): string;
     connect: () => Promise<void>;
     disconnect: () => Promise<void>;
-    getName: () => string;
+    getName: () => ExchangeName;
     protected abstract onMessage(event: MessageEvent): void;
-    private _onOpen;
-    private _onClose;
+    protected onOpen?(): void;
+    protected onClose?(): void;
     private _onMessage;
     protected assertConnected: () => Promise<void>;
     protected setOrderCallback: (callback: SubscribeCallback) => void;
     protected onOrder: (event: OrderEvent) => void;
+    debug: (message: string) => void;
 }

@@ -1,6 +1,8 @@
 import WebSocket from 'ws';
 import ReconnectingWebsocket, { Message } from 'reconnecting-websocket';
 import uniqueRandom from 'unique-random';
+import ccxt from 'ccxt';
+import { ExchangeName } from '.';
 
 export type Trade = {
   id: string;
@@ -61,9 +63,13 @@ export type OrderInput = {
 export type SubscribeCallback = (event: OrderEvent) => void;
 
 export type ExchangeConstructorParameters = {
-  name: string;
+  name: ExchangeName;
   url: string;
   credentials: ExchangeCredentials;
+};
+
+export type ExchangeConstructorOptionalParameters = {
+  debug?: boolean;
 };
 
 export type ExchangeCredentials = {
@@ -74,38 +80,52 @@ export type ExchangeCredentials = {
 };
 
 export abstract class Exchange {
-  private readonly _name: string;
+  private readonly _name: ExchangeName;
   protected _ws: ReconnectingWebsocket;
   private _connected?: Promise<boolean>;
   protected _credentials: ExchangeCredentials;
   protected _random: Function;
-
+  protected _debug: boolean;
+  protected _ccxtInstance: ccxt.Exchange;
   private _orderCallback?: SubscribeCallback;
 
-  constructor(params: ExchangeConstructorParameters) {
+  constructor(params: ExchangeConstructorParameters & ExchangeConstructorOptionalParameters) {
     this._name = params.name;
-    this._ws = new ReconnectingWebsocket(params.url, [], { WebSocket });
+    this._ws = new ReconnectingWebsocket(params.url, [], { WebSocket, startClosed: true });
     this._credentials = params.credentials;
     this._random = uniqueRandom(0, Math.pow(2, 45));
+    this._debug = params.debug ? true : false;
+    this._ccxtInstance = new { ...ccxt }[this._name]();
   }
 
-  public abstract subscribeOrders({ callback }: { callback: SubscribeCallback }): void;
-  public abstract createOrder({ order }: { order: OrderInput }): { clientId?: string };
-  public abstract createClientId(): string;
+  // Class interface to be implemented by specific exchanges
+  public subscribeOrders?({ callback }: { callback: SubscribeCallback }): void;
+  public createOrder?({ order }: { order: OrderInput }): void;
+  public cancelOrder?({ id }: { id: string }): void;
+  public createClientId?(): string;
 
   public connect = async () => {
+    await this._ccxtInstance.loadMarkets();
+
     this._connected = new Promise((resolve, reject) => {
       this._ws.addEventListener('open', () => {
         resolve(true);
-        this._onOpen();
+        console.log(`Connection to ${this._name} established.`);
+        if (this.onOpen) {
+          this.onOpen();
+        }
       });
       this._ws.addEventListener('close', () => {
         resolve(false);
-        this._onClose();
+        console.log(`Connection to ${this._name} closed.`);
+        if (this.onClose) {
+          this.onClose();
+        }
       });
       this._ws.addEventListener('error', () => {
         resolve(false);
       });
+      this._ws.reconnect();
     });
     this._ws.addEventListener('message', this._onMessage);
 
@@ -122,16 +142,11 @@ export abstract class Exchange {
   };
 
   protected abstract onMessage(event: MessageEvent): void;
-
-  private _onOpen = () => {
-    console.log(`Connection to ${this._name} established.`);
-  };
-
-  private _onClose = () => {
-    console.log(`Connection to ${this._name} closed.`);
-  };
+  protected onOpen?(): void;
+  protected onClose?(): void;
 
   private _onMessage = (event: MessageEvent) => {
+    this.debug(`Event on ${this.getName()}: ${event.data}`)
     this.onMessage(event);
   };
 
@@ -150,4 +165,10 @@ export abstract class Exchange {
       this._orderCallback(event);
     }
   };
+
+  public debug = (message: string) => {
+    if (this._debug) {
+      console.log(message);
+    }
+  }
 }

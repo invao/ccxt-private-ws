@@ -110,7 +110,7 @@ var bitfinex = /** @class */ (function (_super) {
                 for (var _i = 0, trades_1 = trades; _i < trades_1.length; _i++) {
                     var trade = trades_1[_i];
                     if (trade.fee) {
-                        if (!fee) {
+                        if (!fee || !fee.currency) {
                             fee = {
                                 currency: trade.fee.currency,
                                 cost: trade.fee.cost
@@ -241,23 +241,26 @@ var bitfinex = /** @class */ (function (_super) {
         _this.createOrder = function (_a) {
             var order = _a.order;
             var clientId = order.clientId ? order.clientId : _this.createClientId();
+            var marketId = _this._ccxtInstance.market(order.symbol).id;
             var orderData = {
                 gid: 1,
                 cid: parseInt(clientId),
                 type: _this._orderTypeMap[order.type],
-                symbol: "t" + order.symbol
-                    .split('/')
-                    .join('')
-                    .toLocaleUpperCase(),
+                symbol: "t" + marketId,
                 amount: order.side === 'buy' ? order.amount.toString() : (-1 * order.amount).toString(),
                 price: order.price.toString(),
                 flags: 0
             };
             var payload = [0, 'on', null, orderData];
             _this._ws.send(JSON.stringify(payload));
-            return {
-                clientId: clientId.toString()
+        };
+        _this.cancelOrder = function (_a) {
+            var id = _a.id;
+            var orderData = {
+                id: id
             };
+            var payload = [0, 'oc', null, orderData];
+            _this._ws.send(JSON.stringify(payload));
         };
         _this.parseOrder = function (data) {
             var type = 'unknown';
@@ -272,18 +275,22 @@ var bitfinex = /** @class */ (function (_super) {
                     break;
             }
             var status = _this.parseOrderStatus(data[13]);
+            var market = _this._ccxtInstance.findMarket(data[3].substr(1, 6));
+            if (!market) {
+                market = { symbol: data[3].substr(1, 3) + '/' + data[3].substr(4, 3) };
+            }
             var order = {
                 id: data[0],
                 clientId: data[2] ? data[2].toString() : undefined,
-                symbol: data[3],
+                symbol: market.symbol,
                 timestamp: data[4],
                 datetime: moment_1.default(data[4]).toISOString(),
                 amount: Math.abs(data[7]),
                 filled: Math.abs(data[7]) - Math.abs(data[6]),
                 type: type,
                 average: data[17],
-                cost: Math.abs(data[16] * data[7]),
-                price: data[16],
+                cost: Math.abs(data[17] * data[7]),
+                price: data[17],
                 remaining: Math.abs(data[6]),
                 side: data[7] > 0 ? 'buy' : 'sell',
                 status: status
