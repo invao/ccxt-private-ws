@@ -102,6 +102,7 @@ var Exchange = /** @class */ (function () {
             return __generator(this, function (_a) {
                 this._connected = undefined;
                 this._ws.close();
+                this._ws.removeEventListener('message', this._onMessage);
                 return [2 /*return*/];
             });
         }); };

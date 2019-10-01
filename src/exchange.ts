@@ -135,6 +135,7 @@ export abstract class Exchange {
   public disconnect = async () => {
     this._connected = undefined;
     this._ws.close();
+    this._ws.removeEventListener('message', this._onMessage)
   };
 
   public getName = () => {
