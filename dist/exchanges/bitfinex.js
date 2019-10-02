@@ -228,7 +228,7 @@ var bitfinex = /** @class */ (function (_super) {
         _this.subscribeOrders = function (_a) {
             var callback = _a.callback;
             _this._subscribeFilter = R.uniq(__spreadArrays(_this._subscribeFilter, ['trading']));
-            _this._doAuth();
+            _this._ws.reconnect();
             _this.setOrderCallback(callback);
         };
         _this._doAuth = function () {

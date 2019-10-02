@@ -218,7 +218,7 @@ export class bitfinex extends Exchange {
 
   public subscribeOrders = ({ callback }: { callback: SubscribeCallback }) => {
     this._subscribeFilter = R.uniq([...this._subscribeFilter, 'trading'])
-    this._doAuth();
+    this._ws.reconnect();
     this.setOrderCallback(callback);
   };
 
