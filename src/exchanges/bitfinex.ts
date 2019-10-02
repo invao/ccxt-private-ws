@@ -108,6 +108,7 @@ const isBitfinexTradeMessage = (message: BitfinexMessage): message is BitfinexTr
 export class bitfinex extends Exchange {
   private _orders: Record<string, Order>;
   private _lock: AsyncLock;
+  private _subscribeFilter: ('trading')[];
   private _orderTypeMap = {
     limit: 'EXCHANGE LIMIT'
   };
@@ -116,6 +117,7 @@ export class bitfinex extends Exchange {
     super({ ...params, url: 'wss://api.bitfinex.com/ws/2', name: 'bitfinex' });
     this._orders = {};
     this._lock = new AsyncLock();
+    this._subscribeFilter = [];
   }
 
   private updateFee = ({ orderId }: { orderId: string }) => {
@@ -215,6 +217,12 @@ export class bitfinex extends Exchange {
   };
 
   public subscribeOrders = ({ callback }: { callback: SubscribeCallback }) => {
+    this._subscribeFilter = R.uniq([...this._subscribeFilter, 'trading'])
+    this._doAuth();
+    this.setOrderCallback(callback);
+  };
+
+  private _doAuth = () => {
     this.assertConnected();
     const authNonce = Date.now() * 1000;
     const authPayload = 'AUTH' + authNonce;
@@ -226,16 +234,18 @@ export class bitfinex extends Exchange {
       authNonce,
       authPayload,
       event: 'auth',
-      filter: ['trading']
+      filter: this._subscribeFilter
     };
 
-    this._ws.send(JSON.stringify(payload));
-    this.setOrderCallback(callback);
-  };
-
+    this._send(JSON.stringify(payload));
+  }
   public createClientId = () => {
     return this._random().toString();
   };
+
+  protected onOpen = () => {
+    this._doAuth();
+  }
 
   public createOrder = ({ order }: { order: OrderInput }) => {
     const clientId = order.clientId ? order.clientId : this.createClientId();
@@ -250,7 +260,7 @@ export class bitfinex extends Exchange {
       flags: 0
     };
     const payload = [0, 'on', null, orderData];
-    this._ws.send(JSON.stringify(payload));
+    this._send(JSON.stringify(payload));
   };
 
   public cancelOrder = ({ id }: { id: string }) => {
@@ -258,7 +268,7 @@ export class bitfinex extends Exchange {
       id
     };
     const payload = [0, 'oc', null, orderData];
-    this._ws.send(JSON.stringify(payload));
+    this._send(JSON.stringify(payload));
   };
 
   private parseOrder = (data: BitfinexOrderMessageContent) => {

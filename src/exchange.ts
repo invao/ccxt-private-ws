@@ -105,6 +105,11 @@ export abstract class Exchange {
   public cancelOrder?({ id }: { id: string }): void;
   public createClientId?(): string;
 
+  protected _send = (message: string) => {
+    console.log(`Sending message to ${this.getName()}: ${message}`);
+    this._ws.send(message);
+  }
+
   public connect = async () => {
     await this._ccxtInstance.loadMarkets();
 

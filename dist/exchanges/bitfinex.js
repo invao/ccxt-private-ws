@@ -59,6 +59,13 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
+var __spreadArrays = (this && this.__spreadArrays) || function () {
+    for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
+    for (var r = Array(s), k = 0, i = 0; i < il; i++)
+        for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
+            r[k] = a[j];
+    return r;
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -220,6 +227,11 @@ var bitfinex = /** @class */ (function (_super) {
         }); };
         _this.subscribeOrders = function (_a) {
             var callback = _a.callback;
+            _this._subscribeFilter = R.uniq(__spreadArrays(_this._subscribeFilter, ['trading']));
+            _this._doAuth();
+            _this.setOrderCallback(callback);
+        };
+        _this._doAuth = function () {
             _this.assertConnected();
             var authNonce = Date.now() * 1000;
             var authPayload = 'AUTH' + authNonce;
@@ -230,13 +242,15 @@ var bitfinex = /** @class */ (function (_super) {
                 authNonce: authNonce,
                 authPayload: authPayload,
                 event: 'auth',
-                filter: ['trading']
+                filter: _this._subscribeFilter
             };
-            _this._ws.send(JSON.stringify(payload));
-            _this.setOrderCallback(callback);
+            _this._send(JSON.stringify(payload));
         };
         _this.createClientId = function () {
             return _this._random().toString();
+        };
+        _this.onOpen = function () {
+            _this._doAuth();
         };
         _this.createOrder = function (_a) {
             var order = _a.order;
@@ -252,7 +266,7 @@ var bitfinex = /** @class */ (function (_super) {
                 flags: 0
             };
             var payload = [0, 'on', null, orderData];
-            _this._ws.send(JSON.stringify(payload));
+            _this._send(JSON.stringify(payload));
         };
         _this.cancelOrder = function (_a) {
             var id = _a.id;
@@ -260,7 +274,7 @@ var bitfinex = /** @class */ (function (_super) {
                 id: id
             };
             var payload = [0, 'oc', null, orderData];
-            _this._ws.send(JSON.stringify(payload));
+            _this._send(JSON.stringify(payload));
         };
         _this.parseOrder = function (data) {
             var type = 'unknown';
@@ -337,6 +351,7 @@ var bitfinex = /** @class */ (function (_super) {
         };
         _this._orders = {};
         _this._lock = new async_lock_1.default();
+        _this._subscribeFilter = [];
         return _this;
     }
     return bitfinex;

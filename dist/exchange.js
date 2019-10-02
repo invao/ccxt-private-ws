@@ -63,6 +63,10 @@ var OrderEventType;
 var Exchange = /** @class */ (function () {
     function Exchange(params) {
         var _this = this;
+        this._send = function (message) {
+            console.log("Sending message to " + _this.getName() + ": " + message);
+            _this._ws.send(message);
+        };
         this.connect = function () { return __awaiter(_this, void 0, void 0, function () {
             var _this = this;
             return __generator(this, function (_a) {

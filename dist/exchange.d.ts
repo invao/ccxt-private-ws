@@ -87,6 +87,7 @@ export declare abstract class Exchange {
         id: string;
     }): void;
     createClientId?(): string;
+    protected _send: (message: string) => void;
     connect: () => Promise<void>;
     disconnect: () => Promise<void>;
     getName: () => ExchangeName;
