@@ -176,7 +176,7 @@ var kraken = /** @class */ (function (_super) {
                             ccxtInstance = new ccxt_1.default['kraken'](__assign({}, this.getCredentials()));
                             options = {};
                             if (order.clientId) {
-                                options['userref'] = order.clientId;
+                                options['userref'] = parseInt(order.clientId);
                             }
                             return [4 /*yield*/, ccxtInstance.createOrder(order.symbol, 'limit', order.side, order.amount, order.price, options)];
                         case 1:
@@ -211,7 +211,7 @@ var kraken = /** @class */ (function (_super) {
                 if (krakenOrder.descr) {
                     krakenOrder.descr.pair = undefined; // ccxt generates DAI//USD instead of DAI/USD as symbol
                 }
-                order = __assign(__assign({}, this._publicCcxtInstance.parseOrder(__assign(__assign({}, (originalOrder ? originalOrder.info : {})), krakenOrder), symbol ? this._publicCcxtInstance.findMarket(symbol) : undefined)), { id: id });
+                order = __assign(__assign({}, this._publicCcxtInstance.parseOrder(__assign(__assign({}, (originalOrder ? originalOrder.info : {})), krakenOrder), symbol ? this._publicCcxtInstance.findMarket(symbol) : undefined)), { clientId: krakenOrder.userref ? krakenOrder.userref.toString() : undefined, id: id });
                 mergedOrder = R.mergeDeepWith(function (left, right) { return (right === undefined ? left : right); }, originalOrder, order);
                 return [2 /*return*/, mergedOrder];
             });
@@ -261,6 +261,9 @@ var kraken = /** @class */ (function (_super) {
                     }
                 });
             });
+        };
+        _this.createClientId = function () {
+            return _this._random().toString();
         };
         _this.subscriptionKeyMapping = {
             orders: 'openOrders'

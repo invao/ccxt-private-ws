@@ -8,6 +8,7 @@ import {
 } from '../exchange';
 import ccxt from 'ccxt';
 import * as R from 'ramda';
+import uniqueRandom from 'unique-random';
 
 type KrakenMessage = KrakenOpenOrdersMessage;
 type KrakenOpenOrdersMessage = [KrakenOrderMessageContent[], 'openOrders'];
@@ -103,7 +104,7 @@ export class kraken extends Exchange {
 
     const options: any = {};
     if (order.clientId) {
-      options['userref'] = order.clientId;
+      options['userref'] = parseInt(order.clientId);
     }
     const result: Order = await ccxtInstance.createOrder(
       order.symbol,
@@ -146,6 +147,7 @@ export class kraken extends Exchange {
         { ...(originalOrder ? originalOrder.info : {}), ...krakenOrder },
         symbol ? this._publicCcxtInstance.findMarket(symbol) : undefined
       ),
+      clientId: krakenOrder.userref ? krakenOrder.userref.toString() : undefined,
       id
     };
 
@@ -199,5 +201,9 @@ export class kraken extends Exchange {
     const ccxtInstance = new ccxt['kraken']({ ...this.getCredentials() });
 
     await ccxtInstance.cancelOrder(id);
+  };
+
+  public createClientId = () => {
+    return this._random().toString();
   };
 }

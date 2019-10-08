@@ -17,5 +17,6 @@ export declare class kraken extends Exchange {
     cancelOrder: ({ id }: {
         id: string;
     }) => Promise<void>;
+    createClientId: () => any;
 }
 export {};

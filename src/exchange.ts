@@ -106,7 +106,7 @@ export abstract class Exchange {
     this._name = params.name;
     this._ws = new ReconnectingWebsocket(params.url, [], { WebSocket, startClosed: true });
     this._credentials = params.credentials;
-    this._random = uniqueRandom(0, Math.pow(2, 45));
+    this._random = uniqueRandom(0, Math.pow(2, 31));
     this._debug = params.debug ? true : false;
     this._ccxtInstance = new { ...ccxt }[this._name]();
     this._subscribeFilter = [];
