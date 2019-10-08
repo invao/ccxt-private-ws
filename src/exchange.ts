@@ -3,6 +3,9 @@ import ReconnectingWebsocket, { Message } from 'reconnecting-websocket';
 import uniqueRandom from 'unique-random';
 import ccxt from 'ccxt';
 import { ExchangeName } from '.';
+import * as R from 'ramda';
+import AsyncLock from 'async-lock';
+import domain from 'domain';
 
 export type Trade = {
   id: string;
@@ -38,12 +41,14 @@ export type Order = {
   };
   trades?: Trade[];
   clientId?: string;
+  info?: any;
 };
 
 export enum OrderEventType {
   ORDER_CREATED = 'ORDER_CREATED',
   ORDER_UPDATED = 'ORDER_UPDATED',
-  ORDER_CLOSED = 'ORDER_CLOSED'
+  ORDER_CLOSED = 'ORDER_CLOSED',
+  ORDER_CANCELED = 'ORDER_CANCELED'
 }
 
 export type OrderEvent = {
@@ -72,12 +77,14 @@ export type ExchangeConstructorOptionalParameters = {
   debug?: boolean;
 };
 
-export type ExchangeCredentials = {
+export type StaticExchangeCredentials = {
   apiKey?: string;
   secret?: string;
   uid?: string;
   password?: string;
 };
+
+export type ExchangeCredentials = StaticExchangeCredentials | (() => StaticExchangeCredentials);
 
 export abstract class Exchange {
   private readonly _name: ExchangeName;
@@ -89,6 +96,11 @@ export abstract class Exchange {
   protected _ccxtInstance: ccxt.Exchange;
   private _orderCallback?: SubscribeCallback;
   private _resolveConnect?: Function;
+  protected _subscribeFilter: string[];
+  protected subscriptionKeyMapping: Record<string, string>;
+  private _orders: Record<string, Order>;
+  protected lock: AsyncLock;
+  protected lockDomain: domain.Domain;
 
   constructor(params: ExchangeConstructorParameters & ExchangeConstructorOptionalParameters) {
     this._name = params.name;
@@ -97,18 +109,31 @@ export abstract class Exchange {
     this._random = uniqueRandom(0, Math.pow(2, 45));
     this._debug = params.debug ? true : false;
     this._ccxtInstance = new { ...ccxt }[this._name]();
+    this._subscribeFilter = [];
+    this.subscriptionKeyMapping = {};
+    this._orders = {};
+    this.lock = new AsyncLock({ domainReentrant: true });
+    this.lockDomain = domain.create();
   }
 
   // Class interface to be implemented by specific exchanges
-  public subscribeOrders?({ callback }: { callback: SubscribeCallback }): void;
-  public createOrder?({ order }: { order: OrderInput }): void;
-  public cancelOrder?({ id }: { id: string }): void;
+  public async createOrder?({ order }: { order: OrderInput }): Promise<void>;
+  public async cancelOrder?({ id }: { id: string }): Promise<void>;
   public createClientId?(): string;
+
 
   protected _send = (message: string) => {
     console.log(`Sending message to ${this.getName()}: ${message}`);
     this._ws.send(message);
-  }
+  };
+
+  protected getCredentials = () => {
+    if (typeof this._credentials === 'function') {
+      return this._credentials();
+    } else {
+      return this._credentials;
+    }
+  };
 
   public connect = async () => {
     await this._ccxtInstance.loadMarkets();
@@ -128,10 +153,10 @@ export abstract class Exchange {
   public disconnect = async () => {
     this._connected = undefined;
     this._ws.close();
-    this._ws.removeEventListener('message', this._onMessage)
-    this._ws.removeEventListener('open', this._onOpen)
-    this._ws.removeEventListener('close', this._onClose)
-    this._ws.removeEventListener('error', this._onError)
+    this._ws.removeEventListener('message', this._onMessage);
+    this._ws.removeEventListener('open', this._onOpen);
+    this._ws.removeEventListener('close', this._onClose);
+    this._ws.removeEventListener('error', this._onError);
   };
 
   public getName = () => {
@@ -143,14 +168,16 @@ export abstract class Exchange {
   protected onClose?(): void;
 
   private _onMessage = (event: MessageEvent) => {
-    this.debug(`Event on ${this.getName()}: ${event.data}`)
-    this.onMessage(event);
+    this.debug(`Event on ${this.getName()}: ${event.data}`);
+    domain.create().run(() => {
+      this.onMessage(event);
+    });
   };
 
   private _onOpen = () => {
     if (this._resolveConnect) {
       this._resolveConnect(true);
-    };
+    }
 
     console.log(`Connection to ${this._name} established.`);
     if (this.onOpen) {
@@ -161,18 +188,18 @@ export abstract class Exchange {
   private _onClose = () => {
     if (this._resolveConnect) {
       this._resolveConnect(false);
-    };
+    }
     console.log(`Connection to ${this._name} closed.`);
     if (this.onClose) {
       this.onClose();
     }
-  }
+  };
 
   private _onError = () => {
     if (this._resolveConnect) {
       this._resolveConnect(false);
-    };
-  }
+    }
+  };
 
   protected assertConnected = async () => {
     if (!(await this._connected)) {
@@ -182,6 +209,12 @@ export abstract class Exchange {
 
   protected setOrderCallback = (callback: SubscribeCallback) => {
     this._orderCallback = callback;
+  };
+
+  public subscribeOrders = ({ callback }: { callback: SubscribeCallback }) => {
+    this._subscribeFilter = R.uniq([...this._subscribeFilter, this.subscriptionKeyMapping['orders']]);
+    this._ws.reconnect();
+    this.setOrderCallback(callback);
   };
 
   protected onOrder = (event: OrderEvent) => {
@@ -194,5 +227,59 @@ export abstract class Exchange {
     if (this._debug) {
       console.log(message);
     }
-  }
+  };
+
+  protected getCachedOrder = (id: string) => {
+    return this._orders[id];
+  };
+
+  protected saveCachedOrder = async (order: Order) => {
+    await this.lock.acquire(order.id, () => {
+      if (!this._orders[order.id]) {
+        this._orders[order.id] = order;
+      } else {
+        this._orders[order.id] = {
+          ...order,
+          trades: this._orders[order.id].trades
+        };
+      }
+    });
+  };
+
+  protected saveCachedTrade = async ({ trade, orderId }: { trade: Trade; orderId: string }) => {
+    return await this.lock.acquire(orderId, () => {
+      if (!this._orders[orderId]) {
+        this._orders[orderId] = {
+          id: orderId,
+          amount: 0,
+          average: 0,
+          cost: 0,
+          datetime: '',
+          filled: 0,
+          price: 0,
+          remaining: 0,
+          side: 'buy',
+          status: 'unknown',
+          symbol: '',
+          timestamp: 0,
+          type: 'unknown'
+        };
+      }
+
+      const order = this._orders[orderId];
+
+      if (!order.trades) {
+        order.trades = [trade];
+      } else {
+        const originalTradeIndex = R.findIndex(t => t.id === trade.id, order.trades);
+        if (originalTradeIndex === -1) {
+          order.trades.push(trade);
+        } else {
+          order.trades[originalTradeIndex] = trade;
+        }
+      }
+
+      return order;
+    });
+  };
 }

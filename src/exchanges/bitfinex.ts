@@ -1,6 +1,5 @@
 import {
   Exchange,
-  SubscribeCallback,
   OrderEventType,
   Order,
   OrderExecutionType,
@@ -10,8 +9,6 @@ import {
 } from '../exchange';
 import crypto from 'crypto-js';
 import moment from 'moment';
-import * as R from 'ramda';
-import AsyncLock from 'async-lock';
 
 type BitfinexConstructorParams = {
   credentials: {
@@ -106,27 +103,25 @@ const isBitfinexTradeMessage = (message: BitfinexMessage): message is BitfinexTr
 };
 
 export class bitfinex extends Exchange {
-  private _orders: Record<string, Order>;
-  private _lock: AsyncLock;
-  private _subscribeFilter: ('trading')[];
   private _orderTypeMap = {
     limit: 'EXCHANGE LIMIT'
   };
 
   constructor(params: BitfinexConstructorParams & ExchangeConstructorOptionalParameters) {
     super({ ...params, url: 'wss://api.bitfinex.com/ws/2', name: 'bitfinex' });
-    this._orders = {};
-    this._lock = new AsyncLock();
-    this._subscribeFilter = [];
+    this.subscriptionKeyMapping = {
+      orders: 'trading'
+    };
   }
 
   private updateFee = ({ orderId }: { orderId: string }) => {
-    if (!this._orders[orderId]) {
+    if (!this.getCachedOrder(orderId)) {
       throw new Error('Order does not exist.');
     }
 
     let fee = undefined;
-    const trades = this._orders[orderId].trades;
+    const order = this.getCachedOrder(orderId);
+    const trades = order.trades;
     if (trades) {
       for (const trade of trades) {
         if (trade.fee) {
@@ -144,61 +139,7 @@ export class bitfinex extends Exchange {
         }
       }
     }
-    this._orders[orderId].fee = fee;
-  };
-
-  private saveOrder = async ({ order }: { order: Order }) => {
-    await this._lock.acquire(order.id, () => {
-      if (!this._orders[order.id]) {
-        this._orders[order.id] = order;
-      } else {
-        this._orders[order.id] = {
-          ...order,
-          trades: this._orders[order.id].trades
-        };
-
-        this.updateFee({ orderId: order.id });
-      }
-    });
-  };
-
-  private saveTrade = async ({ trade, orderId }: { trade: Trade; orderId: string }) => {
-    return await this._lock.acquire(orderId, () => {
-      if (!this._orders[orderId]) {
-        this._orders[orderId] = {
-          id: orderId,
-          amount: 0,
-          average: 0,
-          cost: 0,
-          datetime: '',
-          filled: 0,
-          price: 0,
-          remaining: 0,
-          side: 'buy',
-          status: 'unknown',
-          symbol: '',
-          timestamp: 0,
-          type: 'unknown'
-        };
-      }
-
-      const order = this._orders[orderId];
-
-      if (!order.trades) {
-        order.trades = [trade];
-      } else {
-        const originalTradeIndex = R.findIndex(t => t.id === trade.id, order.trades);
-        if (originalTradeIndex === -1) {
-          order.trades.push(trade);
-        } else {
-          order.trades[originalTradeIndex] = trade;
-        }
-      }
-
-      this.updateFee({ orderId: order.id });
-
-      return order;
-    });
+    this.saveCachedOrder({ ...order, fee });
   };
 
   protected onMessage = async (event: MessageEvent) => {
@@ -207,29 +148,26 @@ export class bitfinex extends Exchange {
     if (isBitfinexOrderMessage(data)) {
       const order = this.parseOrder(data[2]);
       const type = this.parseOrderEventType(data[1]);
-      this.saveOrder({ order });
-      this.onOrder({ type, order });
+      this.saveCachedOrder(order);
+      this.updateFee({ orderId: order.id });
+      this.onOrder({ type, order: this.getCachedOrder(order.id) });
     } else if (isBitfinexTradeMessage(data)) {
       const trade = this.parseTrade(data[2]);
-      const order = await this.saveTrade({ trade, orderId: data[2][3] });
-      this.onOrder({ type: OrderEventType.ORDER_UPDATED, order });
+      const order = await this.saveCachedTrade({ trade, orderId: data[2][3] });
+      this.updateFee({ orderId: order.id });
+      this.onOrder({ type: OrderEventType.ORDER_UPDATED, order: this.getCachedOrder(order.id) });
     }
   };
 
-  public subscribeOrders = ({ callback }: { callback: SubscribeCallback }) => {
-    this._subscribeFilter = R.uniq([...this._subscribeFilter, 'trading'])
-    this._ws.reconnect();
-    this.setOrderCallback(callback);
-  };
-
   private _doAuth = () => {
+    const credentials = this.getCredentials();
     this.assertConnected();
     const authNonce = Date.now() * 1000;
     const authPayload = 'AUTH' + authNonce;
-    const authSig = crypto.HmacSHA384(authPayload, this._credentials.secret).toString(crypto.enc.Hex);
+    const authSig = crypto.HmacSHA384(authPayload, credentials.secret).toString(crypto.enc.Hex);
 
     const payload = {
-      apiKey: this._credentials.apiKey,
+      apiKey: credentials.apiKey,
       authSig,
       authNonce,
       authPayload,
@@ -238,18 +176,19 @@ export class bitfinex extends Exchange {
     };
 
     this._send(JSON.stringify(payload));
-  }
+  };
+
   public createClientId = () => {
     return this._random().toString();
   };
 
   protected onOpen = () => {
     this._doAuth();
-  }
+  };
 
-  public createOrder = ({ order }: { order: OrderInput }) => {
+  public createOrder = async ({ order }: { order: OrderInput }) => {
     const clientId = order.clientId ? order.clientId : this.createClientId();
-    const marketId = this._ccxtInstance.market(order.symbol).id
+    const marketId = this._ccxtInstance.market(order.symbol).id;
     const orderData = {
       gid: 1,
       cid: parseInt(clientId),
@@ -263,7 +202,7 @@ export class bitfinex extends Exchange {
     this._send(JSON.stringify(payload));
   };
 
-  public cancelOrder = ({ id }: { id: string }) => {
+  public cancelOrder = async ({ id }: { id: string }) => {
     const orderData = {
       id
     };
@@ -286,9 +225,9 @@ export class bitfinex extends Exchange {
     }
 
     const status = this.parseOrderStatus(data[13]);
-    let market = this._ccxtInstance.findMarket(data[3].substr(1, 6))
+    let market = this._ccxtInstance.findMarket(data[3].substr(1, 6));
     if (!market) {
-      market = { symbol: data[3].substr(1, 3) + '/' + data[3].substr(4, 3) }
+      market = { symbol: data[3].substr(1, 3) + '/' + data[3].substr(4, 3) };
     }
 
     const order: Order = {

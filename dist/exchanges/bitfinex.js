@@ -59,29 +59,13 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-var __spreadArrays = (this && this.__spreadArrays) || function () {
-    for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
-    for (var r = Array(s), k = 0, i = 0; i < il; i++)
-        for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
-            r[k] = a[j];
-    return r;
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
-    result["default"] = mod;
-    return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 var exchange_1 = require("../exchange");
 var crypto_js_1 = __importDefault(require("crypto-js"));
 var moment_1 = __importDefault(require("moment"));
-var R = __importStar(require("ramda"));
-var async_lock_1 = __importDefault(require("async-lock"));
 var BitfinexOrderMessageCommands;
 (function (BitfinexOrderMessageCommands) {
     BitfinexOrderMessageCommands["NEW_ORDER"] = "on";
@@ -108,11 +92,12 @@ var bitfinex = /** @class */ (function (_super) {
         };
         _this.updateFee = function (_a) {
             var orderId = _a.orderId;
-            if (!_this._orders[orderId]) {
+            if (!_this.getCachedOrder(orderId)) {
                 throw new Error('Order does not exist.');
             }
             var fee = undefined;
-            var trades = _this._orders[orderId].trades;
+            var order = _this.getCachedOrder(orderId);
+            var trades = order.trades;
             if (trades) {
                 for (var _i = 0, trades_1 = trades; _i < trades_1.length; _i++) {
                     var trade = trades_1[_i];
@@ -132,74 +117,7 @@ var bitfinex = /** @class */ (function (_super) {
                     }
                 }
             }
-            _this._orders[orderId].fee = fee;
-        };
-        _this.saveOrder = function (_a) {
-            var order = _a.order;
-            return __awaiter(_this, void 0, void 0, function () {
-                var _this = this;
-                return __generator(this, function (_b) {
-                    switch (_b.label) {
-                        case 0: return [4 /*yield*/, this._lock.acquire(order.id, function () {
-                                if (!_this._orders[order.id]) {
-                                    _this._orders[order.id] = order;
-                                }
-                                else {
-                                    _this._orders[order.id] = __assign(__assign({}, order), { trades: _this._orders[order.id].trades });
-                                    _this.updateFee({ orderId: order.id });
-                                }
-                            })];
-                        case 1:
-                            _b.sent();
-                            return [2 /*return*/];
-                    }
-                });
-            });
-        };
-        _this.saveTrade = function (_a) {
-            var trade = _a.trade, orderId = _a.orderId;
-            return __awaiter(_this, void 0, void 0, function () {
-                var _this = this;
-                return __generator(this, function (_b) {
-                    switch (_b.label) {
-                        case 0: return [4 /*yield*/, this._lock.acquire(orderId, function () {
-                                if (!_this._orders[orderId]) {
-                                    _this._orders[orderId] = {
-                                        id: orderId,
-                                        amount: 0,
-                                        average: 0,
-                                        cost: 0,
-                                        datetime: '',
-                                        filled: 0,
-                                        price: 0,
-                                        remaining: 0,
-                                        side: 'buy',
-                                        status: 'unknown',
-                                        symbol: '',
-                                        timestamp: 0,
-                                        type: 'unknown'
-                                    };
-                                }
-                                var order = _this._orders[orderId];
-                                if (!order.trades) {
-                                    order.trades = [trade];
-                                }
-                                else {
-                                    var originalTradeIndex = R.findIndex(function (t) { return t.id === trade.id; }, order.trades);
-                                    if (originalTradeIndex === -1) {
-                                        order.trades.push(trade);
-                                    }
-                                    else {
-                                        order.trades[originalTradeIndex] = trade;
-                                    }
-                                }
-                                _this.updateFee({ orderId: order.id });
-                                return order;
-                            })];
-                        case 1: return [2 /*return*/, _b.sent()];
-                    }
-                });
-            });
+            _this.saveCachedOrder(__assign(__assign({}, order), { fee: fee }));
         };
         _this.onMessage = function (event) { return __awaiter(_this, void 0, void 0, function () {
             var data, order, type, trade, order;
@@ -210,34 +128,31 @@ var bitfinex = /** @class */ (function (_super) {
                         if (!isBitfinexOrderMessage(data)) return [3 /*break*/, 1];
                         order = this.parseOrder(data[2]);
                         type = this.parseOrderEventType(data[1]);
-                        this.saveOrder({ order: order });
-                        this.onOrder({ type: type, order: order });
+                        this.saveCachedOrder(order);
+                        this.updateFee({ orderId: order.id });
+                        this.onOrder({ type: type, order: this.getCachedOrder(order.id) });
                         return [3 /*break*/, 3];
                     case 1:
                         if (!isBitfinexTradeMessage(data)) return [3 /*break*/, 3];
                         trade = this.parseTrade(data[2]);
-                        return [4 /*yield*/, this.saveTrade({ trade: trade, orderId: data[2][3] })];
+                        return [4 /*yield*/, this.saveCachedTrade({ trade: trade, orderId: data[2][3] })];
                     case 2:
                         order = _a.sent();
-                        this.onOrder({ type: exchange_1.OrderEventType.ORDER_UPDATED, order: order });
+                        this.updateFee({ orderId: order.id });
+                        this.onOrder({ type: exchange_1.OrderEventType.ORDER_UPDATED, order: this.getCachedOrder(order.id) });
                         _a.label = 3;
                     case 3: return [2 /*return*/];
                 }
             });
         }); };
-        _this.subscribeOrders = function (_a) {
-            var callback = _a.callback;
-            _this._subscribeFilter = R.uniq(__spreadArrays(_this._subscribeFilter, ['trading']));
-            _this._ws.reconnect();
-            _this.setOrderCallback(callback);
-        };
         _this._doAuth = function () {
+            var credentials = _this.getCredentials();
             _this.assertConnected();
             var authNonce = Date.now() * 1000;
             var authPayload = 'AUTH' + authNonce;
-            var authSig = crypto_js_1.default.HmacSHA384(authPayload, _this._credentials.secret).toString(crypto_js_1.default.enc.Hex);
+            var authSig = crypto_js_1.default.HmacSHA384(authPayload, credentials.secret).toString(crypto_js_1.default.enc.Hex);
             var payload = {
-                apiKey: _this._credentials.apiKey,
+                apiKey: credentials.apiKey,
                 authSig: authSig,
                 authNonce: authNonce,
                 authPayload: authPayload,
@@ -254,27 +169,39 @@ var bitfinex = /** @class */ (function (_super) {
         };
         _this.createOrder = function (_a) {
             var order = _a.order;
-            var clientId = order.clientId ? order.clientId : _this.createClientId();
-            var marketId = _this._ccxtInstance.market(order.symbol).id;
-            var orderData = {
-                gid: 1,
-                cid: parseInt(clientId),
-                type: _this._orderTypeMap[order.type],
-                symbol: "t" + marketId,
-                amount: order.side === 'buy' ? order.amount.toString() : (-1 * order.amount).toString(),
-                price: order.price.toString(),
-                flags: 0
-            };
-            var payload = [0, 'on', null, orderData];
-            _this._send(JSON.stringify(payload));
+            return __awaiter(_this, void 0, void 0, function () {
+                var clientId, marketId, orderData, payload;
+                return __generator(this, function (_b) {
+                    clientId = order.clientId ? order.clientId : this.createClientId();
+                    marketId = this._ccxtInstance.market(order.symbol).id;
+                    orderData = {
+                        gid: 1,
+                        cid: parseInt(clientId),
+                        type: this._orderTypeMap[order.type],
+                        symbol: "t" + marketId,
+                        amount: order.side === 'buy' ? order.amount.toString() : (-1 * order.amount).toString(),
+                        price: order.price.toString(),
+                        flags: 0
+                    };
+                    payload = [0, 'on', null, orderData];
+                    this._send(JSON.stringify(payload));
+                    return [2 /*return*/];
+                });
+            });
         };
         _this.cancelOrder = function (_a) {
             var id = _a.id;
-            var orderData = {
-                id: id
-            };
-            var payload = [0, 'oc', null, orderData];
-            _this._send(JSON.stringify(payload));
+            return __awaiter(_this, void 0, void 0, function () {
+                var orderData, payload;
+                return __generator(this, function (_b) {
+                    orderData = {
+                        id: id
+                    };
+                    payload = [0, 'oc', null, orderData];
+                    this._send(JSON.stringify(payload));
+                    return [2 /*return*/];
+                });
+            });
         };
         _this.parseOrder = function (data) {
             var type = 'unknown';
@@ -349,11 +276,12 @@ var bitfinex = /** @class */ (function (_super) {
             }
             return 'unknown';
         };
-        _this._orders = {};
-        _this._lock = new async_lock_1.default();
-        _this._subscribeFilter = [];
+        _this.subscriptionKeyMapping = {
+            orders: 'trading'
+        };
         return _this;
     }
     return bitfinex;
 }(exchange_1.Exchange));
 exports.bitfinex = bitfinex;
+//# sourceMappingURL=bitfinex.js.map

@@ -8,20 +8,21 @@
   "author": "Christian Goltz <christian.goltz@invao.org>",
   "license": "MIT",
   "devDependencies": {
-    "@types/node-fetch": "^2.5.2",
-    "@types/ramda": "^0.26.22",
     "@types/async-lock": "^1.1.1",
     "@types/crypto-js": "^3.1.43",
+    "@types/node-fetch": "^2.5.2",
     "@types/qs": "^6.5.3",
+    "@types/ramda": "^0.26.22",
     "@types/ws": "^6.0.3",
     "nodemon": "^1.19.2",
+    "source-map-support": "^0.5.13",
     "ts-node": "^8.4.1",
     "typescript": "^3.6.3"
   },
   "scripts": {
     "prepublish": "tsc",
     "start": "tsc && node dist/index.js",
-    "dev": "nodemon --watch 'src/**/*' --ext 'ts' --exec 'tsc'"
+    "dev": "nodemon --watch 'src/**/*' --ext 'ts' --exec 'ts-node src/index.ts'"
   },
   "dependencies": {
     "async-lock": "^1.2.2",

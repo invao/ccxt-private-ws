@@ -76,14 +76,15 @@ var binance = /** @class */ (function (_super) {
             return [2 /*return*/];
         }); }); };
         _this.onOpen = function () { return __awaiter(_this, void 0, void 0, function () {
-            var params, uri, apiSign, response;
+            var credentials, params, uri, apiSign, response;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        if (!this._credentials.apiKey) {
+                        credentials = this.getCredentials();
+                        if (!credentials.apiKey) {
                             throw new Error('Missing api key.');
                         }
-                        if (!this._credentials.secret) {
+                        if (!credentials.secret) {
                             throw new Error('Missing api key.');
                         }
                         params = { nonce: moment_1.default().valueOf() };
@@ -91,15 +92,14 @@ var binance = /** @class */ (function (_super) {
                         apiSign = this.getSignature({
                             uri: uri,
                             request: params,
-                            secret: this._credentials.secret,
+                            secret: credentials.secret,
                             nonce: params.nonce
                         });
                         return [4 /*yield*/, node_fetch_1.default(uri, {
-                                headers: { 'API-Key': this._credentials.apiKey, 'API-Sign': apiSign }
+                                headers: { 'API-Key': credentials.apiKey, 'API-Sign': apiSign }
                             })];
                     case 1:
                         response = _a.sent();
-                        console.log('RESPONSE', response.json());
                         return [2 /*return*/];
                 }
             });
@@ -119,3 +119,4 @@ var binance = /** @class */ (function (_super) {
     return binance;
 }(exchange_1.Exchange));
 exports.binance = binance;
+//# sourceMappingURL=binance.js.map

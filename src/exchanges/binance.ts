@@ -19,11 +19,12 @@ export class binance extends Exchange {
   protected onMessage = async (event: MessageEvent) => {};
 
   protected onOpen = async () => {
-    if (!this._credentials.apiKey) {
+    const credentials = this.getCredentials();
+    if (!credentials.apiKey) {
       throw new Error('Missing api key.');
     }
 
-    if (!this._credentials.secret) {
+    if (!credentials.secret) {
       throw new Error('Missing api key.');
     }
 
@@ -33,13 +34,12 @@ export class binance extends Exchange {
     const apiSign = this.getSignature({
       uri,
       request: params,
-      secret: this._credentials.secret,
+      secret: credentials.secret,
       nonce: params.nonce
     });
     const response = await fetch(uri, {
-      headers: { 'API-Key': this._credentials.apiKey, 'API-Sign': apiSign }
+      headers: { 'API-Key': credentials.apiKey, 'API-Sign': apiSign }
     });
-    console.log('RESPONSE', response.json());
   };
 
   private getSignature = ({

@@ -46,19 +46,37 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
+var __spreadArrays = (this && this.__spreadArrays) || function () {
+    for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
+    for (var r = Array(s), k = 0, i = 0; i < il; i++)
+        for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
+            r[k] = a[j];
+    return r;
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
+    result["default"] = mod;
+    return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 var ws_1 = __importDefault(require("ws"));
 var reconnecting_websocket_1 = __importDefault(require("reconnecting-websocket"));
 var unique_random_1 = __importDefault(require("unique-random"));
 var ccxt_1 = __importDefault(require("ccxt"));
+var R = __importStar(require("ramda"));
+var async_lock_1 = __importDefault(require("async-lock"));
+var domain_1 = __importDefault(require("domain"));
 var OrderEventType;
 (function (OrderEventType) {
     OrderEventType["ORDER_CREATED"] = "ORDER_CREATED";
     OrderEventType["ORDER_UPDATED"] = "ORDER_UPDATED";
     OrderEventType["ORDER_CLOSED"] = "ORDER_CLOSED";
+    OrderEventType["ORDER_CANCELED"] = "ORDER_CANCELED";
 })(OrderEventType = exports.OrderEventType || (exports.OrderEventType = {}));
 var Exchange = /** @class */ (function () {
     function Exchange(params) {
@@ -66,6 +84,14 @@ var Exchange = /** @class */ (function () {
         this._send = function (message) {
             console.log("Sending message to " + _this.getName() + ": " + message);
             _this._ws.send(message);
+        };
+        this.getCredentials = function () {
+            if (typeof _this._credentials === 'function') {
+                return _this._credentials();
+            }
+            else {
+                return _this._credentials;
+            }
         };
         this.connect = function () { return __awaiter(_this, void 0, void 0, function () {
             var _this = this;
@@ -105,13 +131,14 @@ var Exchange = /** @class */ (function () {
         };
         this._onMessage = function (event) {
             _this.debug("Event on " + _this.getName() + ": " + event.data);
-            _this.onMessage(event);
+            domain_1.default.create().run(function () {
+                _this.onMessage(event);
+            });
         };
         this._onOpen = function () {
             if (_this._resolveConnect) {
                 _this._resolveConnect(true);
             }
-            ;
             console.log("Connection to " + _this._name + " established.");
             if (_this.onOpen) {
                 _this.onOpen();
@@ -121,7 +148,6 @@ var Exchange = /** @class */ (function () {
             if (_this._resolveConnect) {
                 _this._resolveConnect(false);
             }
-            ;
             console.log("Connection to " + _this._name + " closed.");
             if (_this.onClose) {
                 _this.onClose();
@@ -131,7 +157,6 @@ var Exchange = /** @class */ (function () {
             if (_this._resolveConnect) {
                 _this._resolveConnect(false);
             }
-            ;
         };
         this.assertConnected = function () { return __awaiter(_this, void 0, void 0, function () {
             return __generator(this, function (_a) {
@@ -148,6 +173,12 @@ var Exchange = /** @class */ (function () {
         this.setOrderCallback = function (callback) {
             _this._orderCallback = callback;
         };
+        this.subscribeOrders = function (_a) {
+            var callback = _a.callback;
+            _this._subscribeFilter = R.uniq(__spreadArrays(_this._subscribeFilter, [_this.subscriptionKeyMapping['orders']]));
+            _this._ws.reconnect();
+            _this.setOrderCallback(callback);
+        };
         this.onOrder = function (event) {
             if (_this._orderCallback) {
                 _this._orderCallback(event);
@@ -158,13 +189,84 @@ var Exchange = /** @class */ (function () {
                 console.log(message);
             }
         };
+        this.getCachedOrder = function (id) {
+            return _this._orders[id];
+        };
+        this.saveCachedOrder = function (order) { return __awaiter(_this, void 0, void 0, function () {
+            var _this = this;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, this.lock.acquire(order.id, function () {
+                            if (!_this._orders[order.id]) {
+                                _this._orders[order.id] = order;
+                            }
+                            else {
+                                _this._orders[order.id] = __assign(__assign({}, order), { trades: _this._orders[order.id].trades });
+                            }
+                        })];
+                    case 1:
+                        _a.sent();
+                        return [2 /*return*/];
+                }
+            });
+        }); };
+        this.saveCachedTrade = function (_a) {
+            var trade = _a.trade, orderId = _a.orderId;
+            return __awaiter(_this, void 0, void 0, function () {
+                var _this = this;
+                return __generator(this, function (_b) {
+                    switch (_b.label) {
+                        case 0: return [4 /*yield*/, this.lock.acquire(orderId, function () {
+                                if (!_this._orders[orderId]) {
+                                    _this._orders[orderId] = {
+                                        id: orderId,
+                                        amount: 0,
+                                        average: 0,
+                                        cost: 0,
+                                        datetime: '',
+                                        filled: 0,
+                                        price: 0,
+                                        remaining: 0,
+                                        side: 'buy',
+                                        status: 'unknown',
+                                        symbol: '',
+                                        timestamp: 0,
+                                        type: 'unknown'
+                                    };
+                                }
+                                var order = _this._orders[orderId];
+                                if (!order.trades) {
+                                    order.trades = [trade];
+                                }
+                                else {
+                                    var originalTradeIndex = R.findIndex(function (t) { return t.id === trade.id; }, order.trades);
+                                    if (originalTradeIndex === -1) {
+                                        order.trades.push(trade);
+                                    }
+                                    else {
+                                        order.trades[originalTradeIndex] = trade;
+                                    }
+                                }
+                                return order;
+                            })];
+                        case 1: return [2 /*return*/, _b.sent()];
+                    }
+                });
+            });
+        };
         this._name = params.name;
         this._ws = new reconnecting_websocket_1.default(params.url, [], { WebSocket: ws_1.default, startClosed: true });
         this._credentials = params.credentials;
         this._random = unique_random_1.default(0, Math.pow(2, 45));
         this._debug = params.debug ? true : false;
         this._ccxtInstance = new (__assign({}, ccxt_1.default)[this._name])();
+        this._subscribeFilter = [];
+        this.subscriptionKeyMapping = {};
+        this._orders = {};
+        this.lock = new async_lock_1.default({ domainReentrant: true });
+        this.lockDomain = domain_1.default.create();
     }
     return Exchange;
 }());
 exports.Exchange = Exchange;
+//# sourceMappingURL=exchange.js.map
