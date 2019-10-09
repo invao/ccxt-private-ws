@@ -5,17 +5,26 @@ import { ExchangeName } from '.';
 import AsyncLock from 'async-lock';
 import domain from 'domain';
 export declare type Trade = {
+    info: any;
     id: string;
     timestamp: number;
-    amount: number;
+    datetime: string;
+    symbol: string;
+    order?: string;
+    type: OrderExecutionType;
+    side: 'buy' | 'sell';
+    takerOrMaker: 'taker' | 'maker';
     price: number;
-    maker: boolean;
+    amount: number;
+    cost: number;
     fee?: {
         cost: number;
         currency: string;
+        rate?: number;
     };
 };
-export declare type OrderExecutionType = 'limit' | 'market' | 'unknown';
+export declare type OrderExecutionType = 'limit' | 'market' | undefined;
+export declare type OrderStatus = 'open' | 'closed' | 'canceled' | 'failed' | 'unknown';
 export declare type Order = {
     id: string;
     timestamp: number;
@@ -29,7 +38,7 @@ export declare type Order = {
     average: number;
     filled: number;
     remaining: number;
-    status: 'open' | 'closed' | 'canceled' | 'failed' | 'unknown';
+    status: OrderStatus;
     fee?: {
         cost: number;
         currency: string;
@@ -42,7 +51,8 @@ export declare enum OrderEventType {
     ORDER_CREATED = "ORDER_CREATED",
     ORDER_UPDATED = "ORDER_UPDATED",
     ORDER_CLOSED = "ORDER_CLOSED",
-    ORDER_CANCELED = "ORDER_CANCELED"
+    ORDER_CANCELED = "ORDER_CANCELED",
+    ORDER_FAILED = "ORDER_FAILED"
 }
 export declare type OrderEvent = {
     type: OrderEventType;
@@ -74,7 +84,8 @@ export declare type StaticExchangeCredentials = {
 export declare type ExchangeCredentials = StaticExchangeCredentials | (() => StaticExchangeCredentials);
 export declare abstract class Exchange {
     private readonly _name;
-    protected _ws: ReconnectingWebsocket;
+    private _url?;
+    protected _ws?: ReconnectingWebsocket;
     private _connected?;
     protected _credentials: ExchangeCredentials;
     protected _random: Function;
@@ -95,7 +106,8 @@ export declare abstract class Exchange {
         id: string;
     }): Promise<void>;
     createClientId?(): string;
-    protected _send: (message: string) => void;
+    onConnect?(): Promise<void>;
+    protected send: (message: string) => void;
     protected getCredentials: () => StaticExchangeCredentials;
     connect: () => Promise<void>;
     disconnect: () => Promise<void>;
@@ -120,4 +132,8 @@ export declare abstract class Exchange {
         trade: Trade;
         orderId: string;
     }) => Promise<Order>;
+    protected setUrl: (url: string) => void;
+    protected updateFeeFromTrades: ({ orderId }: {
+        orderId: string;
+    }) => Promise<void>;
 }

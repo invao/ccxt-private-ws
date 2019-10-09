@@ -8,7 +8,6 @@ declare type BitfinexConstructorParams = {
 export declare class bitfinex extends Exchange {
     private _orderTypeMap;
     constructor(params: BitfinexConstructorParams & ExchangeConstructorOptionalParameters);
-    private updateFee;
     protected onMessage: (event: MessageEvent) => Promise<void>;
     private _doAuth;
     createClientId: () => any;
@@ -19,6 +18,7 @@ export declare class bitfinex extends Exchange {
     cancelOrder: ({ id }: {
         id: string;
     }) => Promise<void>;
+    private getOrderType;
     private parseOrder;
     private parseTrade;
     private parseOrderEventType;

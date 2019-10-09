@@ -77,13 +77,19 @@ var OrderEventType;
     OrderEventType["ORDER_UPDATED"] = "ORDER_UPDATED";
     OrderEventType["ORDER_CLOSED"] = "ORDER_CLOSED";
     OrderEventType["ORDER_CANCELED"] = "ORDER_CANCELED";
+    OrderEventType["ORDER_FAILED"] = "ORDER_FAILED";
 })(OrderEventType = exports.OrderEventType || (exports.OrderEventType = {}));
 var Exchange = /** @class */ (function () {
     function Exchange(params) {
         var _this = this;
-        this._send = function (message) {
+        this.send = function (message) {
             console.log("Sending message to " + _this.getName() + ": " + message);
-            _this._ws.send(message);
+            if (_this._ws) {
+                _this._ws.send(message);
+            }
+            else {
+                throw new Error('Websocket not connected.');
+            }
         };
         this.getCredentials = function () {
             if (typeof _this._credentials === 'function') {
@@ -97,10 +103,27 @@ var Exchange = /** @class */ (function () {
             var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, this._ccxtInstance.loadMarkets()];
+                    case 0:
+                        if (!this.onConnect) return [3 /*break*/, 2];
+                        return [4 /*yield*/, this.onConnect()];
                     case 1:
                         _a.sent();
+                        _a.label = 2;
+                    case 2:
+                        if (this._ws) {
+                            this._ws.close();
+                        }
+                        if (!this._url) {
+                            throw new Error('Websocket url missing.');
+                        }
+                        this._ws = new reconnecting_websocket_1.default(this._url, [], { WebSocket: ws_1.default, startClosed: true });
+                        return [4 /*yield*/, this._ccxtInstance.loadMarkets()];
+                    case 3:
+                        _a.sent();
                         this._connected = new Promise(function (resolve, reject) {
+                            if (!_this._ws) {
+                                throw new Error('Websocket not connected.');
+                            }
                             _this._resolveConnect = resolve;
                             _this._ws.addEventListener('open', _this._onOpen);
                             _this._ws.addEventListener('close', _this._onClose);
@@ -109,7 +132,7 @@ var Exchange = /** @class */ (function () {
                         });
                         this._ws.addEventListener('message', this._onMessage);
                         return [4 /*yield*/, this.assertConnected()];
-                    case 2:
+                    case 4:
                         _a.sent();
                         return [2 /*return*/];
                 }
@@ -118,6 +141,9 @@ var Exchange = /** @class */ (function () {
         this.disconnect = function () { return __awaiter(_this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 this._connected = undefined;
+                if (!this._ws) {
+                    throw new Error('Websocket not connected.');
+                }
                 this._ws.close();
                 this._ws.removeEventListener('message', this._onMessage);
                 this._ws.removeEventListener('open', this._onOpen);
@@ -139,7 +165,7 @@ var Exchange = /** @class */ (function () {
             if (_this._resolveConnect) {
                 _this._resolveConnect(true);
             }
-            console.log("Connection to " + _this._name + " established.");
+            console.log("Connection to " + _this._name + " established at " + _this._url + ".");
             if (_this.onOpen) {
                 _this.onOpen();
             }
@@ -176,7 +202,9 @@ var Exchange = /** @class */ (function () {
         this.subscribeOrders = function (_a) {
             var callback = _a.callback;
             _this._subscribeFilter = R.uniq(__spreadArrays(_this._subscribeFilter, [_this.subscriptionKeyMapping['orders']]));
-            _this._ws.reconnect();
+            if (_this._ws) {
+                _this._ws.reconnect();
+            }
             _this.setOrderCallback(callback);
         };
         this.onOrder = function (event) {
@@ -231,7 +259,7 @@ var Exchange = /** @class */ (function () {
                                         status: 'unknown',
                                         symbol: '',
                                         timestamp: 0,
-                                        type: 'unknown'
+                                        type: undefined
                                     };
                                 }
                                 var order = _this._orders[orderId];
@@ -254,8 +282,51 @@ var Exchange = /** @class */ (function () {
                 });
             });
         };
+        this.setUrl = function (url) {
+            _this._url = url;
+        };
+        this.updateFeeFromTrades = function (_a) {
+            var orderId = _a.orderId;
+            return __awaiter(_this, void 0, void 0, function () {
+                var fee, order, trades, _i, trades_1, trade;
+                return __generator(this, function (_b) {
+                    switch (_b.label) {
+                        case 0:
+                            if (!this.getCachedOrder(orderId)) {
+                                throw new Error('Order does not exist.');
+                            }
+                            fee = undefined;
+                            order = this.getCachedOrder(orderId);
+                            trades = order.trades;
+                            if (trades) {
+                                for (_i = 0, trades_1 = trades; _i < trades_1.length; _i++) {
+                                    trade = trades_1[_i];
+                                    if (trade.fee) {
+                                        if (!fee || !fee.currency) {
+                                            fee = {
+                                                currency: trade.fee.currency,
+                                                cost: trade.fee.cost
+                                            };
+                                        }
+                                        else {
+                                            if (fee.currency !== trade.fee.currency) {
+                                                throw new Error('Mixed currency fees not supported.');
+                                            }
+                                            fee.cost += trade.fee.cost;
+                                        }
+                                    }
+                                }
+                            }
+                            return [4 /*yield*/, this.saveCachedOrder(__assign(__assign({}, order), { fee: fee }))];
+                        case 1:
+                            _b.sent();
+                            return [2 /*return*/];
+                    }
+                });
+            });
+        };
         this._name = params.name;
-        this._ws = new reconnecting_websocket_1.default(params.url, [], { WebSocket: ws_1.default, startClosed: true });
+        this._url = params.url;
         this._credentials = params.credentials;
         this._random = unique_random_1.default(0, Math.pow(2, 31));
         this._debug = params.debug ? true : false;

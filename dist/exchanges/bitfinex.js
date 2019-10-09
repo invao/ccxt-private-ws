@@ -90,35 +90,6 @@ var bitfinex = /** @class */ (function (_super) {
         _this._orderTypeMap = {
             limit: 'EXCHANGE LIMIT'
         };
-        _this.updateFee = function (_a) {
-            var orderId = _a.orderId;
-            if (!_this.getCachedOrder(orderId)) {
-                throw new Error('Order does not exist.');
-            }
-            var fee = undefined;
-            var order = _this.getCachedOrder(orderId);
-            var trades = order.trades;
-            if (trades) {
-                for (var _i = 0, trades_1 = trades; _i < trades_1.length; _i++) {
-                    var trade = trades_1[_i];
-                    if (trade.fee) {
-                        if (!fee || !fee.currency) {
-                            fee = {
-                                currency: trade.fee.currency,
-                                cost: trade.fee.cost
-                            };
-                        }
-                        else {
-                            if (fee.currency !== trade.fee.currency) {
-                                throw new Error('Mixed currency fees not supported.');
-                            }
-                            fee.cost += trade.fee.cost;
-                        }
-                    }
-                }
-            }
-            _this.saveCachedOrder(__assign(__assign({}, order), { fee: fee }));
-        };
         _this.onMessage = function (event) { return __awaiter(_this, void 0, void 0, function () {
             var data, order, type, trade, order;
             return __generator(this, function (_a) {
@@ -129,7 +100,7 @@ var bitfinex = /** @class */ (function (_super) {
                         order = this.parseOrder(data[2]);
                         type = this.parseOrderEventType(data[1]);
                         this.saveCachedOrder(order);
-                        this.updateFee({ orderId: order.id });
+                        this.updateFeeFromTrades({ orderId: order.id });
                         this.onOrder({ type: type, order: this.getCachedOrder(order.id) });
                         return [3 /*break*/, 3];
                     case 1:
@@ -138,7 +109,7 @@ var bitfinex = /** @class */ (function (_super) {
                         return [4 /*yield*/, this.saveCachedTrade({ trade: trade, orderId: data[2][3] })];
                     case 2:
                         order = _a.sent();
-                        this.updateFee({ orderId: order.id });
+                        this.updateFeeFromTrades({ orderId: order.id });
                         this.onOrder({ type: exchange_1.OrderEventType.ORDER_UPDATED, order: this.getCachedOrder(order.id) });
                         _a.label = 3;
                     case 3: return [2 /*return*/];
@@ -159,7 +130,7 @@ var bitfinex = /** @class */ (function (_super) {
                 event: 'auth',
                 filter: _this._subscribeFilter
             };
-            _this._send(JSON.stringify(payload));
+            _this.send(JSON.stringify(payload));
         };
         _this.createClientId = function () {
             return _this._random().toString();
@@ -184,7 +155,7 @@ var bitfinex = /** @class */ (function (_super) {
                         flags: 0
                     };
                     payload = [0, 'on', null, orderData];
-                    this._send(JSON.stringify(payload));
+                    this.send(JSON.stringify(payload));
                     return [2 /*return*/];
                 });
             });
@@ -198,23 +169,23 @@ var bitfinex = /** @class */ (function (_super) {
                         id: id
                     };
                     payload = [0, 'oc', null, orderData];
-                    this._send(JSON.stringify(payload));
+                    this.send(JSON.stringify(payload));
                     return [2 /*return*/];
                 });
             });
         };
-        _this.parseOrder = function (data) {
-            var type = 'unknown';
-            switch (data[8]) {
+        _this.getOrderType = function (type) {
+            switch (type) {
                 case 'EXCHANGE MARKET':
                 case 'MARKET':
-                    type = 'market';
-                    break;
+                    return 'market';
                 case 'EXCHANGE LIMIT':
                 case 'LIMIT':
-                    type = 'limit';
-                    break;
+                    return 'limit';
             }
+            return 'market';
+        };
+        _this.parseOrder = function (data) {
             var status = _this.parseOrderStatus(data[13]);
             var market = _this._ccxtInstance.findMarket(data[3].substr(1, 6));
             if (!market) {
@@ -228,7 +199,7 @@ var bitfinex = /** @class */ (function (_super) {
                 datetime: moment_1.default(data[4]).toISOString(),
                 amount: Math.abs(data[7]),
                 filled: Math.abs(data[7]) - Math.abs(data[6]),
-                type: type,
+                type: _this.getOrderType(data[8]),
                 average: data[17],
                 cost: Math.abs(data[17] * data[7]),
                 price: data[17],
@@ -239,16 +210,26 @@ var bitfinex = /** @class */ (function (_super) {
             return order;
         };
         _this.parseTrade = function (data) {
+            var amount = Math.abs(data[4]);
+            var price = data[5];
+            var timestamp = data[2];
             var trade = {
                 id: data[0],
-                timestamp: data[2],
-                amount: Math.abs(data[4]),
-                price: data[5],
-                maker: data[8] === 1,
+                timestamp: timestamp,
+                amount: amount,
+                price: price,
+                takerOrMaker: data[8] === 1 ? 'maker' : 'taker',
                 fee: {
                     cost: Math.abs(data[9]),
                     currency: data[10]
-                }
+                },
+                info: data,
+                cost: price * amount,
+                datetime: moment_1.default(timestamp).toISOString(),
+                order: data[3],
+                side: data[4] > 0 ? 'buy' : 'sell',
+                symbol: _this._ccxtInstance.findSymbol(data[1].substr(1, 6)),
+                type: _this.getOrderType(data[6]),
             };
             return trade;
         };

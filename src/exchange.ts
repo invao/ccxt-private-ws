@@ -8,19 +8,27 @@ import AsyncLock from 'async-lock';
 import domain from 'domain';
 
 export type Trade = {
+  info: any;
   id: string;
   timestamp: number;
-  amount: number;
+  datetime: string;
+  symbol: string;
+  order?: string;
+  type: OrderExecutionType;
+  side: 'buy' | 'sell';
+  takerOrMaker: 'taker' | 'maker';
   price: number;
-  maker: boolean;
+  amount: number;
+  cost: number;
   fee?: {
     cost: number;
     currency: string;
+    rate?: number
   };
 };
 
-export type OrderExecutionType = 'limit' | 'market' | 'unknown';
-
+export type OrderExecutionType = 'limit' | 'market' | undefined;
+export type OrderStatus = 'open' | 'closed' | 'canceled' | 'failed' | 'unknown';
 export type Order = {
   id: string;
   timestamp: number;
@@ -34,7 +42,7 @@ export type Order = {
   average: number;
   filled: number;
   remaining: number;
-  status: 'open' | 'closed' | 'canceled' | 'failed' | 'unknown';
+  status: OrderStatus;
   fee?: {
     cost: number;
     currency: string;
@@ -48,7 +56,8 @@ export enum OrderEventType {
   ORDER_CREATED = 'ORDER_CREATED',
   ORDER_UPDATED = 'ORDER_UPDATED',
   ORDER_CLOSED = 'ORDER_CLOSED',
-  ORDER_CANCELED = 'ORDER_CANCELED'
+  ORDER_CANCELED = 'ORDER_CANCELED',
+  ORDER_FAILED = 'ORDER_FAILED'
 }
 
 export type OrderEvent = {
@@ -88,7 +97,8 @@ export type ExchangeCredentials = StaticExchangeCredentials | (() => StaticExcha
 
 export abstract class Exchange {
   private readonly _name: ExchangeName;
-  protected _ws: ReconnectingWebsocket;
+  private _url?: string;
+  protected _ws?: ReconnectingWebsocket;
   private _connected?: Promise<boolean>;
   protected _credentials: ExchangeCredentials;
   protected _random: Function;
@@ -104,7 +114,7 @@ export abstract class Exchange {
 
   constructor(params: ExchangeConstructorParameters & ExchangeConstructorOptionalParameters) {
     this._name = params.name;
-    this._ws = new ReconnectingWebsocket(params.url, [], { WebSocket, startClosed: true });
+    this._url = params.url;
     this._credentials = params.credentials;
     this._random = uniqueRandom(0, Math.pow(2, 31));
     this._debug = params.debug ? true : false;
@@ -120,11 +130,15 @@ export abstract class Exchange {
   public async createOrder?({ order }: { order: OrderInput }): Promise<void>;
   public async cancelOrder?({ id }: { id: string }): Promise<void>;
   public createClientId?(): string;
+  public onConnect?(): Promise<void>;
 
-
-  protected _send = (message: string) => {
+  protected send = (message: string) => {
     console.log(`Sending message to ${this.getName()}: ${message}`);
-    this._ws.send(message);
+    if (this._ws) {
+      this._ws.send(message);
+    } else {
+      throw new Error('Websocket not connected.');
+    }
   };
 
   protected getCredentials = () => {
@@ -136,9 +150,24 @@ export abstract class Exchange {
   };
 
   public connect = async () => {
+    if (this.onConnect) {
+      await this.onConnect();
+    }
+
+    if (this._ws) {
+      this._ws.close();
+    }
+
+    if (!this._url) {
+      throw new Error('Websocket url missing.');
+    }
+    this._ws = new ReconnectingWebsocket(this._url, [], { WebSocket, startClosed: true });
     await this._ccxtInstance.loadMarkets();
 
     this._connected = new Promise((resolve, reject) => {
+      if (!this._ws) {
+        throw new Error('Websocket not connected.');
+      }
       this._resolveConnect = resolve;
       this._ws.addEventListener('open', this._onOpen);
       this._ws.addEventListener('close', this._onClose);
@@ -152,6 +181,9 @@ export abstract class Exchange {
 
   public disconnect = async () => {
     this._connected = undefined;
+    if (!this._ws) {
+      throw new Error('Websocket not connected.');
+    }
     this._ws.close();
     this._ws.removeEventListener('message', this._onMessage);
     this._ws.removeEventListener('open', this._onOpen);
@@ -179,7 +211,7 @@ export abstract class Exchange {
       this._resolveConnect(true);
     }
 
-    console.log(`Connection to ${this._name} established.`);
+    console.log(`Connection to ${this._name} established at ${this._url}.`);
     if (this.onOpen) {
       this.onOpen();
     }
@@ -213,7 +245,9 @@ export abstract class Exchange {
 
   public subscribeOrders = ({ callback }: { callback: SubscribeCallback }) => {
     this._subscribeFilter = R.uniq([...this._subscribeFilter, this.subscriptionKeyMapping['orders']]);
-    this._ws.reconnect();
+    if (this._ws) {
+      this._ws.reconnect();
+    }
     this.setOrderCallback(callback);
   };
 
@@ -262,7 +296,7 @@ export abstract class Exchange {
           status: 'unknown',
           symbol: '',
           timestamp: 0,
-          type: 'unknown'
+          type: undefined
         };
       }
 
@@ -281,5 +315,37 @@ export abstract class Exchange {
 
       return order;
     });
+  };
+
+  protected setUrl = (url: string) => {
+    this._url = url;
+  }
+
+  protected updateFeeFromTrades = async ({ orderId }: { orderId: string }) => {
+    if (!this.getCachedOrder(orderId)) {
+      throw new Error('Order does not exist.');
+    }
+
+    let fee = undefined;
+    const order = this.getCachedOrder(orderId);
+    const trades = order.trades;
+    if (trades) {
+      for (const trade of trades) {
+        if (trade.fee) {
+          if (!fee || !fee.currency) {
+            fee = {
+              currency: trade.fee.currency,
+              cost: trade.fee.cost
+            };
+          } else {
+            if (fee.currency !== trade.fee.currency) {
+              throw new Error('Mixed currency fees not supported.');
+            }
+            fee.cost += trade.fee.cost;
+          }
+        }
+      }
+    }
+    await this.saveCachedOrder({ ...order, fee });
   };
 }

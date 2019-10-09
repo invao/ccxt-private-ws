@@ -22,7 +22,7 @@
   "scripts": {
     "prepublish": "tsc",
     "start": "tsc && node dist/index.js",
-    "dev": "nodemon --watch 'src/**/*' --ext 'ts' --exec 'ts-node src/index.ts'"
+    "dev": "ts-node src/index.ts && nodemon --watch 'src/**/*' --ext 'ts' --exec 'ts-node --transpile-only src/index.ts'"
   },
   "dependencies": {
     "async-lock": "^1.2.2",

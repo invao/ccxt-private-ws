@@ -91,7 +91,7 @@ export class kraken extends Exchange {
 
     const token = data.result.token;
     for (const filter of this._subscribeFilter) {
-      this._ws.send(JSON.stringify({ event: 'subscribe', subscription: { name: filter, token } }));
+      this.send(JSON.stringify({ event: 'subscribe', subscription: { name: filter, token } }));
     }
   };
 

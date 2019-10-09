@@ -62,58 +62,286 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
+    result["default"] = mod;
+    return result;
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 var exchange_1 = require("../exchange");
-var node_fetch_1 = __importDefault(require("node-fetch"));
-var qs_1 = __importDefault(require("qs"));
-var crypto_1 = __importDefault(require("crypto"));
+var ccxt_1 = __importDefault(require("ccxt"));
+var R = __importStar(require("ramda"));
 var moment_1 = __importDefault(require("moment"));
+var BinanceOrderExecutionType;
+(function (BinanceOrderExecutionType) {
+    BinanceOrderExecutionType["NEW"] = "NEW";
+    BinanceOrderExecutionType["CANCELED"] = "CANCELED";
+    BinanceOrderExecutionType["REPLACED"] = "REPLACED";
+    BinanceOrderExecutionType["REJECTED"] = "REJECTED";
+    BinanceOrderExecutionType["EXPIRED"] = "EXPIRED";
+})(BinanceOrderExecutionType || (BinanceOrderExecutionType = {}));
+var BinanceOrderStatus;
+(function (BinanceOrderStatus) {
+    BinanceOrderStatus["NEW"] = "NEW";
+    BinanceOrderStatus["PARTIALLY_FILLED"] = "PARTIALLY_FILLED";
+    BinanceOrderStatus["FILLED"] = "FILLED";
+    BinanceOrderStatus["CANCELED"] = "CANCELED";
+    BinanceOrderStatus["PENDING_CANCEL"] = "PENDING_CANCEL";
+    BinanceOrderStatus["REJECTED"] = "REJECTED";
+    BinanceOrderStatus["EXPIRED"] = "EXPIRED";
+})(BinanceOrderStatus || (BinanceOrderStatus = {}));
+var isBinanceOrderMessage = function (message) {
+    return (message.e === 'executionReport' &&
+        message.x !== 'TRADE');
+};
+var isBinanceTradeMessage = function (message) {
+    return (message.e === 'executionReport' && message.x === 'TRADE');
+};
 var binance = /** @class */ (function (_super) {
     __extends(binance, _super);
     function binance(params) {
-        var _this = _super.call(this, __assign(__assign({}, params), { url: 'wss://ws-auth.kraken.com', name: 'binance' })) || this;
-        _this.onMessage = function (event) { return __awaiter(_this, void 0, void 0, function () { return __generator(this, function (_a) {
-            return [2 /*return*/];
-        }); }); };
-        _this.onOpen = function () { return __awaiter(_this, void 0, void 0, function () {
-            var credentials, params, uri, apiSign, response;
+        var _this = _super.call(this, __assign(__assign({}, params), { url: '', name: 'binance' })) || this;
+        _this.onMessage = function (event) { return __awaiter(_this, void 0, void 0, function () {
+            var data, orderId_1, orderId_2;
+            var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        credentials = this.getCredentials();
-                        if (!credentials.apiKey) {
-                            throw new Error('Missing api key.');
-                        }
-                        if (!credentials.secret) {
-                            throw new Error('Missing api key.');
-                        }
-                        params = { nonce: moment_1.default().valueOf() };
-                        uri = 'https://api.kraken.com/0/private/GetWebSocketsToken';
-                        apiSign = this.getSignature({
-                            uri: uri,
-                            request: params,
-                            secret: credentials.secret,
-                            nonce: params.nonce
-                        });
-                        return [4 /*yield*/, node_fetch_1.default(uri, {
-                                headers: { 'API-Key': credentials.apiKey, 'API-Sign': apiSign }
-                            })];
+                        data = JSON.parse(event.data);
+                        if (!isBinanceOrderMessage(data)) return [3 /*break*/, 2];
+                        orderId_1 = this.getOrderId(data);
+                        return [4 /*yield*/, this.lock.acquire(orderId_1, function () { return __awaiter(_this, void 0, void 0, function () {
+                                var type, order;
+                                return __generator(this, function (_a) {
+                                    switch (_a.label) {
+                                        case 0:
+                                            type = this.getOrderEventType(data);
+                                            return [4 /*yield*/, this.parseOrder(data)];
+                                        case 1:
+                                            order = _a.sent();
+                                            return [4 /*yield*/, this.saveCachedOrder(order)];
+                                        case 2:
+                                            _a.sent();
+                                            return [4 /*yield*/, this.updateFeeFromTrades({ orderId: orderId_1 })];
+                                        case 3:
+                                            _a.sent();
+                                            this.onOrder({ type: type, order: this.getCachedOrder(orderId_1) });
+                                            return [2 /*return*/];
+                                    }
+                                });
+                            }); })];
                     case 1:
-                        response = _a.sent();
+                        _a.sent();
+                        return [3 /*break*/, 4];
+                    case 2:
+                        if (!isBinanceTradeMessage(data)) return [3 /*break*/, 4];
+                        orderId_2 = this.getOrderId(data);
+                        return [4 /*yield*/, this.lock.acquire(orderId_2, function () { return __awaiter(_this, void 0, void 0, function () {
+                                var type, order, trade;
+                                return __generator(this, function (_a) {
+                                    switch (_a.label) {
+                                        case 0:
+                                            type = this.getOrderEventType(data);
+                                            return [4 /*yield*/, this.parseOrder(data)];
+                                        case 1:
+                                            order = _a.sent();
+                                            return [4 /*yield*/, this.saveCachedOrder(order)];
+                                        case 2:
+                                            _a.sent();
+                                            return [4 /*yield*/, this.parseTrade(data)];
+                                        case 3:
+                                            trade = _a.sent();
+                                            return [4 /*yield*/, this.saveCachedTrade({ trade: trade, orderId: orderId_2 })];
+                                        case 4:
+                                            _a.sent();
+                                            return [4 /*yield*/, this.updateFeeFromTrades({ orderId: orderId_2 })];
+                                        case 5:
+                                            _a.sent();
+                                            this.onOrder({ type: type, order: this.getCachedOrder(orderId_2) });
+                                            return [2 /*return*/];
+                                    }
+                                });
+                            }); })];
+                    case 3:
+                        _a.sent();
+                        _a.label = 4;
+                    case 4: return [2 /*return*/];
+                }
+            });
+        }); };
+        _this._doAuth = function () { return __awaiter(_this, void 0, void 0, function () {
+            var ccxtInstance, data, listenKey;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, this._publicCcxtInstance.loadMarkets()];
+                    case 1:
+                        _a.sent();
+                        ccxtInstance = new ccxt_1.default['binance'](__assign({}, this.getCredentials()));
+                        return [4 /*yield*/, ccxtInstance.publicPostUserDataStream()];
+                    case 2:
+                        data = _a.sent();
+                        listenKey = data.listenKey;
+                        this.setUrl("wss://stream.binance.com:9443/ws/" + listenKey);
                         return [2 /*return*/];
                 }
             });
         }); };
-        _this.getSignature = function (_a) {
-            var uri = _a.uri, request = _a.request, secret = _a.secret, nonce = _a.nonce;
-            var message = qs_1.default.stringify(request);
-            var secret_buffer = new Buffer(secret, 'base64');
-            var hash = crypto_1.default.createHash('sha256');
-            var hmac = crypto_1.default.createHmac('sha512', secret_buffer);
-            var hash_digest = hash.update(nonce + message).digest();
-            var hmac_digest = hmac.update(uri + hash_digest).digest('base64');
-            return hmac_digest;
+        _this.onConnect = function () { return __awaiter(_this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, this._doAuth()];
+                    case 1:
+                        _a.sent();
+                        return [2 /*return*/];
+                }
+            });
+        }); };
+        _this.onOpen = function () { return __awaiter(_this, void 0, void 0, function () { return __generator(this, function (_a) {
+            return [2 /*return*/];
+        }); }); };
+        _this.createOrder = function (_a) {
+            var order = _a.order;
+            return __awaiter(_this, void 0, void 0, function () {
+                var ccxtInstance, options, result;
+                return __generator(this, function (_b) {
+                    switch (_b.label) {
+                        case 0:
+                            ccxtInstance = new ccxt_1.default['binance'](__assign({}, this.getCredentials()));
+                            options = {};
+                            if (order.clientId) {
+                                options['newClientOrderId'] = parseInt(order.clientId);
+                            }
+                            return [4 /*yield*/, ccxtInstance.createOrder(order.symbol, 'limit', order.side, order.amount, order.price, options)];
+                        case 1:
+                            result = _b.sent();
+                            return [4 /*yield*/, this.saveCachedOrder(result)];
+                        case 2:
+                            _b.sent();
+                            return [2 /*return*/];
+                    }
+                });
+            });
         };
+        _this.getOrderId = function (message) {
+            var id = message.i.toString();
+            if (!id) {
+                throw new Error('Invalid order message from binance.');
+            }
+            return id;
+        };
+        _this.getOrderType = function (type) {
+            var types = {
+                LIMIT: 'limit',
+                MARKET: 'market'
+            };
+            return types[type];
+        };
+        _this.parseOrder = function (message) {
+            var statuses = {
+                NEW: 'open',
+                PARTIALLY_FILLED: 'open',
+                FILLED: 'closed',
+                CANCELED: 'canceled',
+                PENDING_CANCEL: 'open',
+                REJECTED: 'failed',
+                EXPIRED: 'canceled'
+            };
+            var id = _this.getOrderId(message);
+            var originalOrder = _this.getCachedOrder(id);
+            var cost = parseFloat(message.Z);
+            var filled = parseFloat(message.z);
+            var amount = parseFloat(message.q);
+            var order = {
+                amount: amount,
+                cost: cost,
+                average: cost / filled,
+                datetime: moment_1.default(message.T).toISOString(),
+                timestamp: message.T,
+                filled: parseFloat(message.z),
+                info: message,
+                price: cost && filled ? cost / filled : parseFloat(message.p),
+                remaining: amount - filled,
+                side: message.S === 'BUY' ? 'buy' : 'sell',
+                status: statuses[message.X],
+                symbol: _this._publicCcxtInstance.findSymbol(message.s),
+                trades: [],
+                type: _this.getOrderType(message.o),
+                clientId: message.c,
+                id: id
+            };
+            var mergedOrder = R.mergeDeepWith(function (left, right) { return (right === undefined ? left : right); }, originalOrder, order);
+            return mergedOrder;
+        };
+        _this.parseTrade = function (message) {
+            var price = parseFloat(message.L);
+            var amount = parseFloat(message.l);
+            return {
+                info: message,
+                timestamp: message.T,
+                datetime: moment_1.default(message.T).toISOString(),
+                symbol: _this._publicCcxtInstance.findSymbol(message.s),
+                id: message.t.toString(),
+                order: message.c,
+                type: _this.getOrderType(message.o),
+                takerOrMaker: message.m ? 'maker' : 'taker',
+                side: message.S === 'BUY' ? 'buy' : 'sell',
+                price: price,
+                amount: amount,
+                cost: price * amount,
+                fee: {
+                    cost: parseFloat(message.n),
+                    currency: _this._publicCcxtInstance.safeCurrencyCode(message.N)
+                }
+            };
+        };
+        _this.getOrderEventType = function (message) {
+            var id = Object.keys(message)[0];
+            if (!id) {
+                throw new Error('Invalid order message from binance.');
+            }
+            var newStatus = message.X;
+            var originalOrder = _this.getCachedOrder(id);
+            if (!newStatus) {
+                return exchange_1.OrderEventType.ORDER_UPDATED;
+            }
+            if (!originalOrder) {
+                return exchange_1.OrderEventType.ORDER_CREATED;
+            }
+            if (newStatus === 'FILLED' && originalOrder.status !== 'closed') {
+                return exchange_1.OrderEventType.ORDER_CLOSED;
+            }
+            else if (newStatus === 'CANCELED' && originalOrder.status !== 'canceled') {
+                return exchange_1.OrderEventType.ORDER_CANCELED;
+            }
+            else if (newStatus === 'REJECTED' && originalOrder.status !== 'failed') {
+                return exchange_1.OrderEventType.ORDER_FAILED;
+            }
+            return exchange_1.OrderEventType.ORDER_UPDATED;
+        };
+        _this.cancelOrder = function (_a) {
+            var id = _a.id;
+            return __awaiter(_this, void 0, void 0, function () {
+                var ccxtInstance, order;
+                return __generator(this, function (_b) {
+                    switch (_b.label) {
+                        case 0:
+                            ccxtInstance = new ccxt_1.default['binance'](__assign({}, this.getCredentials()));
+                            order = this.getCachedOrder(id);
+                            return [4 /*yield*/, ccxtInstance.cancelOrder(id, order.symbol)];
+                        case 1:
+                            _b.sent();
+                            return [2 /*return*/];
+                    }
+                });
+            });
+        };
+        _this.createClientId = function () {
+            return _this._random().toString();
+        };
+        _this.subscriptionKeyMapping = {};
+        _this._publicCcxtInstance = new ccxt_1.default['binance']();
         return _this;
     }
     return binance;

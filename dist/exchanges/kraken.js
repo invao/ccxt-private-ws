@@ -150,7 +150,7 @@ var kraken = /** @class */ (function (_super) {
                         token = data.result.token;
                         for (_i = 0, _a = this._subscribeFilter; _i < _a.length; _i++) {
                             filter = _a[_i];
-                            this._ws.send(JSON.stringify({ event: 'subscribe', subscription: { name: filter, token: token } }));
+                            this.send(JSON.stringify({ event: 'subscribe', subscription: { name: filter, token: token } }));
                         }
                         return [2 /*return*/];
                 }

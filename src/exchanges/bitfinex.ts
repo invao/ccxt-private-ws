@@ -114,34 +114,6 @@ export class bitfinex extends Exchange {
     };
   }
 
-  private updateFee = ({ orderId }: { orderId: string }) => {
-    if (!this.getCachedOrder(orderId)) {
-      throw new Error('Order does not exist.');
-    }
-
-    let fee = undefined;
-    const order = this.getCachedOrder(orderId);
-    const trades = order.trades;
-    if (trades) {
-      for (const trade of trades) {
-        if (trade.fee) {
-          if (!fee || !fee.currency) {
-            fee = {
-              currency: trade.fee.currency,
-              cost: trade.fee.cost
-            };
-          } else {
-            if (fee.currency !== trade.fee.currency) {
-              throw new Error('Mixed currency fees not supported.');
-            }
-            fee.cost += trade.fee.cost;
-          }
-        }
-      }
-    }
-    this.saveCachedOrder({ ...order, fee });
-  };
-
   protected onMessage = async (event: MessageEvent) => {
     const data: BitfinexMessage = JSON.parse(event.data);
 
@@ -149,12 +121,12 @@ export class bitfinex extends Exchange {
       const order = this.parseOrder(data[2]);
       const type = this.parseOrderEventType(data[1]);
       this.saveCachedOrder(order);
-      this.updateFee({ orderId: order.id });
+      this.updateFeeFromTrades({ orderId: order.id });
       this.onOrder({ type, order: this.getCachedOrder(order.id) });
     } else if (isBitfinexTradeMessage(data)) {
       const trade = this.parseTrade(data[2]);
       const order = await this.saveCachedTrade({ trade, orderId: data[2][3] });
-      this.updateFee({ orderId: order.id });
+      this.updateFeeFromTrades({ orderId: order.id });
       this.onOrder({ type: OrderEventType.ORDER_UPDATED, order: this.getCachedOrder(order.id) });
     }
   };
@@ -175,7 +147,7 @@ export class bitfinex extends Exchange {
       filter: this._subscribeFilter
     };
 
-    this._send(JSON.stringify(payload));
+    this.send(JSON.stringify(payload));
   };
 
   public createClientId = () => {
@@ -199,7 +171,7 @@ export class bitfinex extends Exchange {
       flags: 0
     };
     const payload = [0, 'on', null, orderData];
-    this._send(JSON.stringify(payload));
+    this.send(JSON.stringify(payload));
   };
 
   public cancelOrder = async ({ id }: { id: string }) => {
@@ -207,23 +179,23 @@ export class bitfinex extends Exchange {
       id
     };
     const payload = [0, 'oc', null, orderData];
-    this._send(JSON.stringify(payload));
+    this.send(JSON.stringify(payload));
   };
 
-  private parseOrder = (data: BitfinexOrderMessageContent) => {
-    let type: OrderExecutionType = 'unknown';
-
-    switch (data[8]) {
+  private getOrderType = (type: string):OrderExecutionType => {
+    switch (type) {
       case 'EXCHANGE MARKET':
       case 'MARKET':
-        type = 'market';
-        break;
+        return 'market';
       case 'EXCHANGE LIMIT':
       case 'LIMIT':
-        type = 'limit';
-        break;
+        return 'limit';
     }
 
+    return 'market';
+  }
+
+  private parseOrder = (data: BitfinexOrderMessageContent) => {
     const status = this.parseOrderStatus(data[13]);
     let market = this._ccxtInstance.findMarket(data[3].substr(1, 6));
     if (!market) {
@@ -238,7 +210,7 @@ export class bitfinex extends Exchange {
       datetime: moment(data[4]).toISOString(),
       amount: Math.abs(data[7]),
       filled: Math.abs(data[7]) - Math.abs(data[6]),
-      type,
+      type: this.getOrderType(data[8]),
       average: data[17],
       cost: Math.abs(data[17] * data[7]),
       price: data[17],
@@ -251,16 +223,27 @@ export class bitfinex extends Exchange {
   };
 
   private parseTrade = (data: BitfinexTradeMessageContent) => {
+    const amount = Math.abs(data[4]);
+    const price = data[5];
+    const timestamp =  data[2];
+
     const trade: Trade = {
       id: data[0],
-      timestamp: data[2],
-      amount: Math.abs(data[4]),
-      price: data[5],
-      maker: data[8] === 1,
+      timestamp,
+      amount,
+      price,
+      takerOrMaker: data[8] === 1 ? 'maker' : 'taker',
       fee: {
         cost: Math.abs(data[9]),
         currency: data[10]
-      }
+      },
+      info: data,
+      cost: price * amount,
+      datetime: moment(timestamp).toISOString(),
+      order: data[3],
+      side: data[4] > 0 ? 'buy' : 'sell',
+      symbol: this._ccxtInstance.findSymbol(data[1].substr(1, 6)),
+      type: this.getOrderType(data[6]),
     };
 
     return trade;
