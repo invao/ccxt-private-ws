@@ -1,11 +1,11 @@
 {
   "name": "ccxt-private-ws",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "CCXT compatible private websocket client",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "repository": "git@gitlab.com:invao-phase1/trading/ccxt-private-ws.git",
-  "author": "Christian Goltz <christian.goltz@invao.org>",
+  "repository": "https://github.com/invao/ccxt-private-ws",
+  "author": "INVAO <tech@invao.org>",
   "license": "MIT",
   "devDependencies": {
     "@types/async-lock": "^1.1.1",
