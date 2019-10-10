@@ -197,7 +197,6 @@ var binance = /** @class */ (function (_super) {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        console.log('keep');
                         ccxtInstance = new ccxt_1.default['binance'](__assign({}, this.getCredentials()));
                         return [4 /*yield*/, ccxtInstance.publicPutUserDataStream({ listenKey: this._listenKey })];
                     case 1:
@@ -218,7 +217,7 @@ var binance = /** @class */ (function (_super) {
                     case 2:
                         data = _a.sent();
                         if (!this._keepAliveInterval) {
-                            this._keepAliveInterval = setInterval(this._keepAlive, 5000);
+                            this._keepAliveInterval = setInterval(this._keepAlive, 1000 * 60 * 30);
                         }
                         this._listenKey = data.listenKey;
                         this.setUrl("wss://stream.binance.com:9443/ws/" + this._listenKey);

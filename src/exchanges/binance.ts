@@ -176,7 +176,6 @@ export class binance extends BaseClient {
   };
 
   private _keepAlive = async () => {
-    console.log('keep')
     const ccxtInstance = new ccxt['binance']({ ...this.getCredentials() });
     await ccxtInstance.publicPutUserDataStream({ listenKey: this._listenKey});
   }
@@ -187,7 +186,7 @@ export class binance extends BaseClient {
     const data = await ccxtInstance.publicPostUserDataStream();
 
     if (!this._keepAliveInterval) {
-      this._keepAliveInterval= setInterval(this._keepAlive, 5000);
+      this._keepAliveInterval= setInterval(this._keepAlive, 1000 * 60 * 30);
     } 
 
     this._listenKey = data.listenKey;
