@@ -1,8 +1,9 @@
-import { Exchange, ExchangeCredentials, OrderInput } from '../exchange';
+import { ExchangeCredentials, OrderInput } from '../exchange';
+import { BaseClient } from '../base-client';
 declare type BinanceConstructorParams = {
     credentials: ExchangeCredentials;
 };
-export declare class binance extends Exchange {
+export declare class binance extends BaseClient {
     private _publicCcxtInstance;
     constructor(params: BinanceConstructorParams);
     protected onMessage: (event: MessageEvent) => Promise<void>;

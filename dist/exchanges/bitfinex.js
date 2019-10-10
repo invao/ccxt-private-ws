@@ -66,6 +66,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var exchange_1 = require("../exchange");
 var crypto_js_1 = __importDefault(require("crypto-js"));
 var moment_1 = __importDefault(require("moment"));
+var base_client_1 = require("../base-client");
 var BitfinexOrderMessageCommands;
 (function (BitfinexOrderMessageCommands) {
     BitfinexOrderMessageCommands["NEW_ORDER"] = "on";
@@ -77,11 +78,25 @@ var BitfinexTradeMessageCommands;
     BitfinexTradeMessageCommands["TRADE_EXECUTED"] = "tu";
     BitfinexTradeMessageCommands["TRADE_EXECUTED_UPDATED"] = "te";
 })(BitfinexTradeMessageCommands || (BitfinexTradeMessageCommands = {}));
+var BitfinexWalletMessageCommands;
+(function (BitfinexWalletMessageCommands) {
+    BitfinexWalletMessageCommands["WALLET_STATUS"] = "ws";
+})(BitfinexWalletMessageCommands || (BitfinexWalletMessageCommands = {}));
+var BitfinexWalletUpdateMessageCommands;
+(function (BitfinexWalletUpdateMessageCommands) {
+    BitfinexWalletUpdateMessageCommands["WALLET_UPDATED"] = "wu";
+})(BitfinexWalletUpdateMessageCommands || (BitfinexWalletUpdateMessageCommands = {}));
 var isBitfinexOrderMessage = function (message) {
     return Object.values(BitfinexOrderMessageCommands).includes(message[1]);
 };
 var isBitfinexTradeMessage = function (message) {
     return Object.values(BitfinexTradeMessageCommands).includes(message[1]);
+};
+var isBitfinexWalletMessage = function (message) {
+    return Object.values(BitfinexWalletMessageCommands).includes(message[1]);
+};
+var isBitfinexWalletUpdateMessage = function (message) {
+    return Object.values(BitfinexWalletUpdateMessageCommands).includes(message[1]);
 };
 var bitfinex = /** @class */ (function (_super) {
     __extends(bitfinex, _super);
@@ -91,9 +106,9 @@ var bitfinex = /** @class */ (function (_super) {
             limit: 'EXCHANGE LIMIT'
         };
         _this.onMessage = function (event) { return __awaiter(_this, void 0, void 0, function () {
-            var data, order, type, trade, order;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
+            var data, order, type, trade, order, _i, _a, message, balance, balance;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
                     case 0:
                         data = JSON.parse(event.data);
                         if (!isBitfinexOrderMessage(data)) return [3 /*break*/, 1];
@@ -102,17 +117,34 @@ var bitfinex = /** @class */ (function (_super) {
                         this.saveCachedOrder(order);
                         this.updateFeeFromTrades({ orderId: order.id });
                         this.onOrder({ type: type, order: this.getCachedOrder(order.id) });
-                        return [3 /*break*/, 3];
+                        return [3 /*break*/, 4];
                     case 1:
                         if (!isBitfinexTradeMessage(data)) return [3 /*break*/, 3];
                         trade = this.parseTrade(data[2]);
                         return [4 /*yield*/, this.saveCachedTrade({ trade: trade, orderId: data[2][3] })];
                     case 2:
-                        order = _a.sent();
+                        order = _b.sent();
                         this.updateFeeFromTrades({ orderId: order.id });
                         this.onOrder({ type: exchange_1.OrderEventType.ORDER_UPDATED, order: this.getCachedOrder(order.id) });
-                        _a.label = 3;
-                    case 3: return [2 /*return*/];
+                        return [3 /*break*/, 4];
+                    case 3:
+                        if (isBitfinexWalletMessage(data)) {
+                            for (_i = 0, _a = data[2]; _i < _a.length; _i++) {
+                                message = _a[_i];
+                                balance = this.parseBalance(message);
+                                if (balance) {
+                                    this.onBalance({ update: balance });
+                                }
+                            }
+                        }
+                        else if (isBitfinexWalletUpdateMessage(data)) {
+                            balance = this.parseBalance(data[2]);
+                            if (balance) {
+                                this.onBalance({ update: balance });
+                            }
+                        }
+                        _b.label = 4;
+                    case 4: return [2 /*return*/];
                 }
             });
         }); };
@@ -229,7 +261,7 @@ var bitfinex = /** @class */ (function (_super) {
                 order: data[3],
                 side: data[4] > 0 ? 'buy' : 'sell',
                 symbol: _this._ccxtInstance.findSymbol(data[1].substr(1, 6)),
-                type: _this.getOrderType(data[6]),
+                type: _this.getOrderType(data[6])
             };
             return trade;
         };
@@ -257,12 +289,30 @@ var bitfinex = /** @class */ (function (_super) {
             }
             return 'unknown';
         };
+        _this.parseBalance = function (message) {
+            var _a;
+            var currency = message[1];
+            var free = message[4];
+            if (free === null) {
+                _this.send(JSON.stringify([0, 'calc', null, [["wallet_funding_" + currency]]]));
+                return undefined;
+            }
+            return _a = {},
+                _a[currency] = {
+                    free: free,
+                    total: message[2],
+                    used: message[3]
+                },
+                _a.info = message,
+                _a;
+        };
         _this.subscriptionKeyMapping = {
-            orders: 'trading'
+            orders: 'trading',
+            balance: 'wallet'
         };
         return _this;
     }
     return bitfinex;
-}(exchange_1.Exchange));
+}(base_client_1.BaseClient));
 exports.bitfinex = bitfinex;
 //# sourceMappingURL=bitfinex.js.map

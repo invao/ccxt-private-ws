@@ -1,8 +1,9 @@
-import { Exchange, ExchangeCredentials, OrderInput } from '../exchange';
+import { ExchangeCredentials, OrderInput } from '../exchange';
+import { BaseClient } from '../base-client';
 declare type KrakenConstructorParams = {
     credentials: ExchangeCredentials;
 };
-export declare class kraken extends Exchange {
+export declare class kraken extends BaseClient {
     private _publicCcxtInstance;
     constructor(params: KrakenConstructorParams);
     protected onMessage: (event: MessageEvent) => Promise<void>;

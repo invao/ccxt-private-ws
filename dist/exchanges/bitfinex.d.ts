@@ -1,11 +1,12 @@
-import { Exchange, OrderInput, ExchangeConstructorOptionalParameters } from '../exchange';
+import { OrderInput, ExchangeConstructorOptionalParameters } from '../exchange';
+import { BaseClient } from '../base-client';
 declare type BitfinexConstructorParams = {
     credentials: {
         apiKey: string;
         secret: string;
     };
 };
-export declare class bitfinex extends Exchange {
+export declare class bitfinex extends BaseClient {
     private _orderTypeMap;
     constructor(params: BitfinexConstructorParams & ExchangeConstructorOptionalParameters);
     protected onMessage: (event: MessageEvent) => Promise<void>;
@@ -23,5 +24,6 @@ export declare class bitfinex extends Exchange {
     private parseTrade;
     private parseOrderEventType;
     private parseOrderStatus;
+    private parseBalance;
 }
 export {};

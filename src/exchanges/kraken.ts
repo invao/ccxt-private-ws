@@ -1,14 +1,12 @@
 import {
-  Exchange,
   ExchangeCredentials,
   OrderInput,
-  OrderExecutionType,
   Order,
   OrderEventType
 } from '../exchange';
 import ccxt from 'ccxt';
 import * as R from 'ramda';
-import uniqueRandom from 'unique-random';
+import { BaseClient } from '../base-client';
 
 type KrakenMessage = KrakenOpenOrdersMessage;
 type KrakenOpenOrdersMessage = [KrakenOrderMessageContent[], 'openOrders'];
@@ -50,7 +48,7 @@ const isKrakenOpenOrdersMessage = (message: KrakenMessage): message is KrakenOpe
   return (message as KrakenOpenOrdersMessage)[1] === 'openOrders';
 };
 
-export class kraken extends Exchange {
+export class kraken extends BaseClient {
   private _publicCcxtInstance: ccxt.Exchange;
   constructor(params: KrakenConstructorParams) {
     super({ ...params, url: 'wss://beta-ws.kraken.com/', name: 'kraken' });

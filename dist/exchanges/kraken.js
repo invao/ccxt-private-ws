@@ -73,6 +73,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var exchange_1 = require("../exchange");
 var ccxt_1 = __importDefault(require("ccxt"));
 var R = __importStar(require("ramda"));
+var base_client_1 = require("../base-client");
 var isKrakenOpenOrdersMessage = function (message) {
     return message[1] === 'openOrders';
 };
@@ -272,6 +273,6 @@ var kraken = /** @class */ (function (_super) {
         return _this;
     }
     return kraken;
-}(exchange_1.Exchange));
+}(base_client_1.BaseClient));
 exports.kraken = kraken;
 //# sourceMappingURL=kraken.js.map

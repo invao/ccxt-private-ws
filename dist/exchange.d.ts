@@ -1,9 +1,5 @@
-/// <reference types="node" />
-import ReconnectingWebsocket from 'reconnecting-websocket';
 import ccxt from 'ccxt';
 import { ExchangeName } from '.';
-import AsyncLock from 'async-lock';
-import domain from 'domain';
 export declare type Trade = {
     info: any;
     id: string;
@@ -58,6 +54,9 @@ export declare type OrderEvent = {
     type: OrderEventType;
     order: Order;
 };
+export declare type BalanceEvent = {
+    update: BalanceUpdate;
+};
 export declare type OrderInput = {
     symbol: string;
     type: 'limit';
@@ -66,7 +65,10 @@ export declare type OrderInput = {
     price: number;
     clientId?: string;
 };
-export declare type SubscribeCallback = (event: OrderEvent) => void;
+export declare type OrderListener = (event: OrderEvent) => void;
+export declare type BalanceListener = (event: BalanceEvent) => void;
+export declare type ConnectListener = () => void;
+export declare type BalanceUpdate = ccxt.Balances;
 export declare type ExchangeConstructorParameters = {
     name: ExchangeName;
     url: string;
@@ -82,23 +84,10 @@ export declare type StaticExchangeCredentials = {
     password?: string;
 };
 export declare type ExchangeCredentials = StaticExchangeCredentials | (() => StaticExchangeCredentials);
-export declare abstract class Exchange {
-    private readonly _name;
-    private _url?;
-    protected _ws?: ReconnectingWebsocket;
-    private _connected?;
-    protected _credentials: ExchangeCredentials;
-    protected _random: Function;
-    protected _debug: boolean;
-    protected _ccxtInstance: ccxt.Exchange;
-    private _orderCallback?;
-    private _resolveConnect?;
-    protected _subscribeFilter: string[];
-    protected subscriptionKeyMapping: Record<string, string>;
-    private _orders;
-    protected lock: AsyncLock;
-    protected lockDomain: domain.Domain;
-    constructor(params: ExchangeConstructorParameters & ExchangeConstructorOptionalParameters);
+export interface Exchange {
+    on(event: 'order', listener: OrderListener): void;
+    on(event: 'balance', listener: BalanceListener): void;
+    on(event: 'connect', listener: ConnectListener): void;
     createOrder?({ order }: {
         order: OrderInput;
     }): Promise<void>;
@@ -106,34 +95,9 @@ export declare abstract class Exchange {
         id: string;
     }): Promise<void>;
     createClientId?(): string;
-    onConnect?(): Promise<void>;
-    protected send: (message: string) => void;
-    protected getCredentials: () => StaticExchangeCredentials;
-    connect: () => Promise<void>;
-    disconnect: () => Promise<void>;
-    getName: () => ExchangeName;
-    protected abstract onMessage(event: MessageEvent): void;
-    protected onOpen?(): void;
-    protected onClose?(): void;
-    private _onMessage;
-    private _onOpen;
-    private _onClose;
-    private _onError;
-    protected assertConnected: () => Promise<void>;
-    protected setOrderCallback: (callback: SubscribeCallback) => void;
-    subscribeOrders: ({ callback }: {
-        callback: SubscribeCallback;
-    }) => void;
-    protected onOrder: (event: OrderEvent) => void;
-    debug: (message: string) => void;
-    protected getCachedOrder: (id: string) => Order;
-    protected saveCachedOrder: (order: Order) => Promise<void>;
-    protected saveCachedTrade: ({ trade, orderId }: {
-        trade: Trade;
-        orderId: string;
-    }) => Promise<Order>;
-    protected setUrl: (url: string) => void;
-    protected updateFeeFromTrades: ({ orderId }: {
-        orderId: string;
-    }) => Promise<void>;
+    subscribeOrders(): void;
+    subscribeBalances(): void;
+    connect(): Promise<void>;
+    disconnect(): Promise<void>;
+    getName(): string;
 }

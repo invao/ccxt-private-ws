@@ -1,5 +1,4 @@
 import {
-  Exchange,
   ExchangeCredentials,
   OrderInput,
   OrderExecutionType,
@@ -12,6 +11,7 @@ import ccxt from 'ccxt';
 import * as R from 'ramda';
 import uniqueRandom from 'unique-random';
 import moment from 'moment';
+import { BaseClient } from '../base-client';
 
 enum BinanceOrderExecutionType {
   NEW = 'NEW',
@@ -84,7 +84,7 @@ const isBinanceTradeMessage = (message: BinanceMessage): message is BinanceTrade
   );
 };
 
-export class binance extends Exchange {
+export class binance extends BaseClient {
   private _publicCcxtInstance: ccxt.Exchange;
   constructor(params: BinanceConstructorParams) {
     super({ ...params, url: '', name: 'binance' });

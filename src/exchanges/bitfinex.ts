@@ -1,14 +1,15 @@
 import {
-  Exchange,
   OrderEventType,
   Order,
   OrderExecutionType,
   Trade,
   OrderInput,
-  ExchangeConstructorOptionalParameters
+  ExchangeConstructorOptionalParameters,
+  BalanceUpdate
 } from '../exchange';
 import crypto from 'crypto-js';
 import moment from 'moment';
+import { BaseClient } from '../base-client';
 
 type BitfinexConstructorParams = {
   credentials: {
@@ -28,9 +29,27 @@ enum BitfinexTradeMessageCommands {
   TRADE_EXECUTED_UPDATED = 'te'
 }
 
-type BitfinexMessage = BitfinexOrderMessage | BitfinexTradeMessage;
+enum BitfinexWalletMessageCommands {
+  WALLET_STATUS = 'ws'
+}
+
+enum BitfinexWalletUpdateMessageCommands {
+  WALLET_UPDATED = 'wu'
+}
+
+type BitfinexMessage =
+  | BitfinexOrderMessage
+  | BitfinexTradeMessage
+  | BitfinexWalletMessage
+  | BitfinexWalletUpdateMessage;
 type BitfinexOrderMessage = [0, BitfinexOrderMessageCommands, BitfinexOrderMessageContent];
 type BitfinexTradeMessage = [0, BitfinexTradeMessageCommands, BitfinexTradeMessageContent];
+type BitfinexWalletMessage = [0, BitfinexWalletMessageCommands, BitfinexWalletMessageContent];
+type BitfinexWalletUpdateMessage = [
+  0,
+  BitfinexWalletUpdateMessageCommands,
+  BitfinexWalletUpdateMessageContent
+];
 
 type BitfinexOrderMessageContent = [
   string, //ID 0
@@ -94,6 +113,16 @@ type BitfinexTradeMessageContent = [
   string // FEE_CURRENCY
 ];
 
+type BitfinexWalletMessageContent = BitfinexWalletUpdateMessageContent[];
+
+type BitfinexWalletUpdateMessageContent = [
+  string, // WALLET_TYPE 0
+  string, // CURRENCY 1
+  number, // TOTAL 2
+  number, // USED 3
+  number | null // FREE 4
+];
+
 const isBitfinexOrderMessage = (message: BitfinexMessage): message is BitfinexOrderMessage => {
   return Object.values(BitfinexOrderMessageCommands).includes((message as BitfinexOrderMessage)[1]);
 };
@@ -102,7 +131,17 @@ const isBitfinexTradeMessage = (message: BitfinexMessage): message is BitfinexTr
   return Object.values(BitfinexTradeMessageCommands).includes((message as BitfinexTradeMessage)[1]);
 };
 
-export class bitfinex extends Exchange {
+const isBitfinexWalletMessage = (message: BitfinexMessage): message is BitfinexWalletMessage => {
+  return Object.values(BitfinexWalletMessageCommands).includes((message as BitfinexWalletMessage)[1]);
+};
+
+const isBitfinexWalletUpdateMessage = (message: BitfinexMessage): message is BitfinexWalletUpdateMessage => {
+  return Object.values(BitfinexWalletUpdateMessageCommands).includes(
+    (message as BitfinexWalletUpdateMessage)[1]
+  );
+};
+
+export class bitfinex extends BaseClient {
   private _orderTypeMap = {
     limit: 'EXCHANGE LIMIT'
   };
@@ -110,7 +149,8 @@ export class bitfinex extends Exchange {
   constructor(params: BitfinexConstructorParams & ExchangeConstructorOptionalParameters) {
     super({ ...params, url: 'wss://api.bitfinex.com/ws/2', name: 'bitfinex' });
     this.subscriptionKeyMapping = {
-      orders: 'trading'
+      orders: 'trading',
+      balance: 'wallet'
     };
   }
 
@@ -128,6 +168,18 @@ export class bitfinex extends Exchange {
       const order = await this.saveCachedTrade({ trade, orderId: data[2][3] });
       this.updateFeeFromTrades({ orderId: order.id });
       this.onOrder({ type: OrderEventType.ORDER_UPDATED, order: this.getCachedOrder(order.id) });
+    } else if (isBitfinexWalletMessage(data)) {
+      for (const message of data[2]) {
+        const balance = this.parseBalance(message);
+        if (balance) {
+          this.onBalance({ update: balance });
+        }
+      }
+    } else if (isBitfinexWalletUpdateMessage(data)) {
+      const balance = this.parseBalance(data[2]);
+      if (balance) {
+        this.onBalance({ update: balance });
+      }
     }
   };
 
@@ -182,7 +234,7 @@ export class bitfinex extends Exchange {
     this.send(JSON.stringify(payload));
   };
 
-  private getOrderType = (type: string):OrderExecutionType => {
+  private getOrderType = (type: string): OrderExecutionType => {
     switch (type) {
       case 'EXCHANGE MARKET':
       case 'MARKET':
@@ -193,7 +245,7 @@ export class bitfinex extends Exchange {
     }
 
     return 'market';
-  }
+  };
 
   private parseOrder = (data: BitfinexOrderMessageContent) => {
     const status = this.parseOrderStatus(data[13]);
@@ -225,7 +277,7 @@ export class bitfinex extends Exchange {
   private parseTrade = (data: BitfinexTradeMessageContent) => {
     const amount = Math.abs(data[4]);
     const price = data[5];
-    const timestamp =  data[2];
+    const timestamp = data[2];
 
     const trade: Trade = {
       id: data[0],
@@ -243,7 +295,7 @@ export class bitfinex extends Exchange {
       order: data[3],
       side: data[4] > 0 ? 'buy' : 'sell',
       symbol: this._ccxtInstance.findSymbol(data[1].substr(1, 6)),
-      type: this.getOrderType(data[6]),
+      type: this.getOrderType(data[6])
     };
 
     return trade;
@@ -272,5 +324,23 @@ export class bitfinex extends Exchange {
     }
 
     return 'unknown';
+  };
+
+  private parseBalance = (message: BitfinexWalletUpdateMessageContent): BalanceUpdate|undefined => {
+    const currency = message[1];
+    const free = message[4] ;
+    if (free === null) {
+      this.send(JSON.stringify([0, 'calc', null, [[`wallet_funding_${currency}`]]]));
+      return undefined;
+    }
+
+    return {
+      [currency]: {
+        free,
+        total: message[2],
+        used: message[3]
+      },
+      info: message as any,
+    }
   };
 }

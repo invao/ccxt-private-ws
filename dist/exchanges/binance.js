@@ -74,6 +74,7 @@ var exchange_1 = require("../exchange");
 var ccxt_1 = __importDefault(require("ccxt"));
 var R = __importStar(require("ramda"));
 var moment_1 = __importDefault(require("moment"));
+var base_client_1 = require("../base-client");
 var BinanceOrderExecutionType;
 (function (BinanceOrderExecutionType) {
     BinanceOrderExecutionType["NEW"] = "NEW";
@@ -345,6 +346,6 @@ var binance = /** @class */ (function (_super) {
         return _this;
     }
     return binance;
-}(exchange_1.Exchange));
+}(base_client_1.BaseClient));
 exports.binance = binance;
 //# sourceMappingURL=binance.js.map
