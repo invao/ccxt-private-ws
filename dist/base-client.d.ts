@@ -4,7 +4,7 @@ import ccxt from 'ccxt';
 import domain from 'domain';
 import ReconnectingWebSocket from 'reconnecting-websocket';
 import { EventEmitter } from 'events';
-import { Exchange, ExchangeConstructorOptionalParameters, ExchangeConstructorParameters, ExchangeCredentials, Order, OrderEvent, OrderInput, Trade, BalanceEvent } from './exchange';
+import { Exchange, ExchangeConstructorOptionalParameters, ExchangeConstructorParameters, ExchangeCredentials, Order, OrderEvent, OrderInput, Trade } from './exchange';
 import { ExchangeName } from './';
 export declare abstract class BaseClient extends EventEmitter implements Exchange {
     private readonly _name;
@@ -22,6 +22,7 @@ export declare abstract class BaseClient extends EventEmitter implements Exchang
     private _orders;
     protected lock: AsyncLock;
     protected lockDomain: domain.Domain;
+    protected preConnect?: () => void;
     constructor(params: ExchangeConstructorParameters & ExchangeConstructorOptionalParameters);
     createOrder?({ order }: {
         order: OrderInput;
@@ -46,7 +47,6 @@ export declare abstract class BaseClient extends EventEmitter implements Exchang
     subscribeOrders: () => void;
     subscribeBalances: () => void;
     protected onOrder: (event: OrderEvent) => void;
-    protected onBalance: (event: BalanceEvent) => void;
     protected debug: (message: string) => void;
     protected getCachedOrder: (id: string) => Order;
     protected saveCachedOrder: (order: Order) => Promise<void>;

@@ -36,6 +36,7 @@ export abstract class BaseClient extends EventEmitter implements Exchange {
   private _orders: Record<string, Order>;
   protected lock: AsyncLock;
   protected lockDomain: domain.Domain;
+  protected preConnect?: () => void;
 
   constructor(params: ExchangeConstructorParameters & ExchangeConstructorOptionalParameters) {
     super();
@@ -75,7 +76,9 @@ export abstract class BaseClient extends EventEmitter implements Exchange {
   };
 
   public connect = async () => {
-    this.emit('connect');
+    if (this.preConnect) {
+      await this.preConnect();
+    }
 
     if (this._ws) {
       this._ws.close();
@@ -197,10 +200,6 @@ export abstract class BaseClient extends EventEmitter implements Exchange {
 
   protected onOrder = (event: OrderEvent) => {
     this.emit('order', event);
-  };
-
-  protected onBalance = (event: BalanceEvent) => {
-    this.emit('balance', event);
   };
 
   protected debug = (message: string) => {

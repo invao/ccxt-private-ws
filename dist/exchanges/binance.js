@@ -100,12 +100,18 @@ var isBinanceOrderMessage = function (message) {
 var isBinanceTradeMessage = function (message) {
     return (message.e === 'executionReport' && message.x === 'TRADE');
 };
+var isBinanceAccountInfoMessage = function (message) {
+    return message.e === 'outboundAccountInfo';
+};
+var isBinanceAccountPositionMessage = function (message) {
+    return message.e === 'outboundAccountPosition';
+};
 var binance = /** @class */ (function (_super) {
     __extends(binance, _super);
     function binance(params) {
         var _this = _super.call(this, __assign(__assign({}, params), { url: '', name: 'binance' })) || this;
         _this.onMessage = function (event) { return __awaiter(_this, void 0, void 0, function () {
-            var data, orderId_1, orderId_2;
+            var data, orderId_1, orderId_2, balance, balance;
             var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
@@ -135,7 +141,7 @@ var binance = /** @class */ (function (_super) {
                             }); })];
                     case 1:
                         _a.sent();
-                        return [3 /*break*/, 4];
+                        return [3 /*break*/, 5];
                     case 2:
                         if (!isBinanceTradeMessage(data)) return [3 /*break*/, 4];
                         orderId_2 = this.getOrderId(data);
@@ -167,13 +173,41 @@ var binance = /** @class */ (function (_super) {
                             }); })];
                     case 3:
                         _a.sent();
-                        _a.label = 4;
-                    case 4: return [2 /*return*/];
+                        return [3 /*break*/, 5];
+                    case 4:
+                        if (isBinanceAccountInfoMessage(data)) {
+                            balance = this.parseBalance(data);
+                            if (balance) {
+                                this.emit('fullBalance', { update: balance });
+                            }
+                        }
+                        else if (isBinanceAccountPositionMessage(data)) {
+                            balance = this.parseBalance(data);
+                            if (balance) {
+                                this.emit('balance', { update: balance });
+                            }
+                        }
+                        _a.label = 5;
+                    case 5: return [2 /*return*/];
+                }
+            });
+        }); };
+        _this._keepAlive = function () { return __awaiter(_this, void 0, void 0, function () {
+            var ccxtInstance;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        console.log('keep');
+                        ccxtInstance = new ccxt_1.default['binance'](__assign({}, this.getCredentials()));
+                        return [4 /*yield*/, ccxtInstance.publicPutUserDataStream({ listenKey: this._listenKey })];
+                    case 1:
+                        _a.sent();
+                        return [2 /*return*/];
                 }
             });
         }); };
         _this._doAuth = function () { return __awaiter(_this, void 0, void 0, function () {
-            var ccxtInstance, data, listenKey;
+            var ccxtInstance, data;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0: return [4 /*yield*/, this._publicCcxtInstance.loadMarkets()];
@@ -183,13 +217,16 @@ var binance = /** @class */ (function (_super) {
                         return [4 /*yield*/, ccxtInstance.publicPostUserDataStream()];
                     case 2:
                         data = _a.sent();
-                        listenKey = data.listenKey;
-                        this.setUrl("wss://stream.binance.com:9443/ws/" + listenKey);
+                        if (!this._keepAliveInterval) {
+                            this._keepAliveInterval = setInterval(this._keepAlive, 5000);
+                        }
+                        this._listenKey = data.listenKey;
+                        this.setUrl("wss://stream.binance.com:9443/ws/" + this._listenKey);
                         return [2 /*return*/];
                 }
             });
         }); };
-        _this.onConnect = function () { return __awaiter(_this, void 0, void 0, function () {
+        _this.preConnect = function () { return __awaiter(_this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0: return [4 /*yield*/, this._doAuth()];
@@ -340,6 +377,23 @@ var binance = /** @class */ (function (_super) {
         };
         _this.createClientId = function () {
             return _this._random().toString();
+        };
+        _this.parseBalance = function (message) {
+            var update = { info: message };
+            if (!message.B) {
+                return undefined;
+            }
+            for (var _i = 0, _a = message.B; _i < _a.length; _i++) {
+                var updateMessage = _a[_i];
+                var free = parseFloat(updateMessage.f);
+                var used = parseFloat(updateMessage.l);
+                update[updateMessage.a] = {
+                    free: free,
+                    used: used,
+                    total: free + used
+                };
+            }
+            return update;
         };
         _this.subscriptionKeyMapping = {};
         _this._publicCcxtInstance = new ccxt_1.default['binance']();

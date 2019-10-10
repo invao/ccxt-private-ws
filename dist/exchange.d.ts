@@ -87,6 +87,7 @@ export declare type ExchangeCredentials = StaticExchangeCredentials | (() => Sta
 export interface Exchange {
     on(event: 'order', listener: OrderListener): void;
     on(event: 'balance', listener: BalanceListener): void;
+    on(event: 'fullBalance', listener: BalanceListener): void;
     on(event: 'connect', listener: ConnectListener): void;
     createOrder?({ order }: {
         order: OrderInput;

@@ -111,7 +111,12 @@ var BaseClient = /** @class */ (function (_super) {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        this.emit('connect');
+                        if (!this.preConnect) return [3 /*break*/, 2];
+                        return [4 /*yield*/, this.preConnect()];
+                    case 1:
+                        _a.sent();
+                        _a.label = 2;
+                    case 2:
                         if (this._ws) {
                             this._ws.close();
                         }
@@ -120,7 +125,7 @@ var BaseClient = /** @class */ (function (_super) {
                         }
                         this._ws = new reconnecting_websocket_1.default(this._url, [], { WebSocket: ws_1.default, startClosed: true });
                         return [4 /*yield*/, this._ccxtInstance.loadMarkets()];
-                    case 1:
+                    case 3:
                         _a.sent();
                         this._connected = new Promise(function (resolve, reject) {
                             if (!_this._ws) {
@@ -134,7 +139,7 @@ var BaseClient = /** @class */ (function (_super) {
                         });
                         this._ws.addEventListener('message', this._onMessage);
                         return [4 /*yield*/, this.assertConnected()];
-                    case 2:
+                    case 4:
                         _a.sent();
                         return [2 /*return*/];
                 }
@@ -224,9 +229,6 @@ var BaseClient = /** @class */ (function (_super) {
         };
         _this.onOrder = function (event) {
             _this.emit('order', event);
-        };
-        _this.onBalance = function (event) {
-            _this.emit('balance', event);
         };
         _this.debug = function (message) {
             if (_this._debug) {

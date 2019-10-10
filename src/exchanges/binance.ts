@@ -5,11 +5,11 @@ import {
   Order,
   OrderEventType,
   OrderStatus,
-  Trade
+  Trade,
+  BalanceUpdate
 } from '../exchange';
 import ccxt from 'ccxt';
 import * as R from 'ramda';
-import uniqueRandom from 'unique-random';
 import moment from 'moment';
 import { BaseClient } from '../base-client';
 
@@ -31,7 +31,41 @@ enum BinanceOrderStatus {
   EXPIRED = 'EXPIRED'
 }
 
-type BinanceMessage = BinanceOrderMessage | BinanceTradeMessage;
+type BinanceMessage =
+  | BinanceOrderMessage
+  | BinanceTradeMessage
+  | BinanceAccountInfoMessage
+  | BinanceAccountPositionMessage;
+
+type BinanceAccountPositionMessage = {
+  e: 'outboundAccountPosition'; // Event type
+  E: number; // Event time
+  u?: number; // Time of last account update
+  B?: {
+    a: string; // Asset
+    f: string; // Free amount
+    l: string; // Locked amount
+  }[];
+};
+
+type BinanceAccountInfoMessage = {
+  e: 'outboundAccountInfo'; // Event type
+  E: number; // Event time
+  m?: number; // Maker commission rate (bips)
+  t?: number; // Taker commission rate (bips)
+  b?: number; // Buyer commission rate (bips)
+  s?: number; // Seller commission rate (bips)
+  T?: boolean; // Can trade?
+  W?: boolean; // Can withdraw?
+  D?: boolean; // Can deposit?
+  u?: number; // Time of last account update
+  B?: {
+    a: string; // Asset
+    f: string; // Free amount
+    l: string; // Locked amount
+  }[];
+};
+
 type BinanceTradeMessage = BinanceOrderMessage & { x: 'TRADE ' };
 type BinanceOrderMessage = {
   e: 'executionReport'; // Event type
@@ -84,8 +118,21 @@ const isBinanceTradeMessage = (message: BinanceMessage): message is BinanceTrade
   );
 };
 
+const isBinanceAccountInfoMessage = (message: BinanceMessage): message is BinanceAccountInfoMessage => {
+  return (message as BinanceAccountInfoMessage).e === 'outboundAccountInfo';
+};
+
+const isBinanceAccountPositionMessage = (
+  message: BinanceMessage
+): message is BinanceAccountPositionMessage => {
+  return (message as BinanceAccountPositionMessage).e === 'outboundAccountPosition';
+};
+
 export class binance extends BaseClient {
   private _publicCcxtInstance: ccxt.Exchange;
+  private _keepAliveInterval?: NodeJS.Timeout;
+  private _listenKey?: string;
+
   constructor(params: BinanceConstructorParams) {
     super({ ...params, url: '', name: 'binance' });
     this.subscriptionKeyMapping = {};
@@ -115,19 +162,39 @@ export class binance extends BaseClient {
         await this.updateFeeFromTrades({ orderId });
         this.onOrder({ type, order: this.getCachedOrder(orderId) });
       });
+    } else if (isBinanceAccountInfoMessage(data)) {
+      const balance = this.parseBalance(data);
+      if (balance) {
+        this.emit('fullBalance', { update: balance });
+      }
+    } else if (isBinanceAccountPositionMessage(data)) {
+      const balance = this.parseBalance(data);
+      if (balance) {
+        this.emit('balance', { update: balance });
+      }
     }
   };
+
+  private _keepAlive = async () => {
+    console.log('keep')
+    const ccxtInstance = new ccxt['binance']({ ...this.getCredentials() });
+    await ccxtInstance.publicPutUserDataStream({ listenKey: this._listenKey});
+  }
 
   private _doAuth = async () => {
     await this._publicCcxtInstance.loadMarkets();
     const ccxtInstance = new ccxt['binance']({ ...this.getCredentials() });
     const data = await ccxtInstance.publicPostUserDataStream();
 
-    const listenKey = data.listenKey;
-    this.setUrl(`wss://stream.binance.com:9443/ws/${listenKey}`);
+    if (!this._keepAliveInterval) {
+      this._keepAliveInterval= setInterval(this._keepAlive, 5000);
+    } 
+
+    this._listenKey = data.listenKey;
+    this.setUrl(`wss://stream.binance.com:9443/ws/${this._listenKey}`);
   };
 
-  public onConnect = async () => {
+  protected preConnect = async () => {
     await this._doAuth();
   };
 
@@ -168,7 +235,7 @@ export class binance extends BaseClient {
     };
 
     return types[type];
-  }
+  };
   private parseOrder = (message: BinanceOrderMessage): Order => {
     const statuses: Record<BinanceOrderStatus, OrderStatus> = {
       NEW: 'open',
@@ -221,7 +288,7 @@ export class binance extends BaseClient {
       info: message,
       timestamp: message.T,
       datetime: moment(message.T).toISOString(),
-      symbol:  this._publicCcxtInstance.findSymbol(message.s),
+      symbol: this._publicCcxtInstance.findSymbol(message.s),
       id: message.t.toString(),
       order: message.c,
       type: this.getOrderType(message.o),
@@ -255,11 +322,11 @@ export class binance extends BaseClient {
       return OrderEventType.ORDER_CREATED;
     }
 
-    if( newStatus === 'FILLED' && originalOrder.status !== 'closed') {
+    if (newStatus === 'FILLED' && originalOrder.status !== 'closed') {
       return OrderEventType.ORDER_CLOSED;
-    } else if( newStatus === 'CANCELED' && originalOrder.status !== 'canceled') {
+    } else if (newStatus === 'CANCELED' && originalOrder.status !== 'canceled') {
       return OrderEventType.ORDER_CANCELED;
-    } else if( newStatus === 'REJECTED' && originalOrder.status !== 'failed') {
+    } else if (newStatus === 'REJECTED' && originalOrder.status !== 'failed') {
       return OrderEventType.ORDER_FAILED;
     }
 
@@ -275,5 +342,27 @@ export class binance extends BaseClient {
 
   public createClientId = () => {
     return this._random().toString();
+  };
+
+  private parseBalance = (
+    message: BinanceAccountInfoMessage | BinanceAccountPositionMessage
+  ): BalanceUpdate | undefined => {
+    const update: BalanceUpdate = { info: message as any };
+
+    if (!message.B) {
+      return undefined;
+    }
+
+    for (const updateMessage of message.B) {
+      const free = parseFloat(updateMessage.f);
+      const used = parseFloat(updateMessage.l);
+      update[updateMessage.a] = {
+        free,
+        used,
+        total: free + used
+      };
+    }
+
+    return update;
   };
 }

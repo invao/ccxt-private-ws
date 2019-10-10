@@ -133,14 +133,14 @@ var bitfinex = /** @class */ (function (_super) {
                                 message = _a[_i];
                                 balance = this.parseBalance(message);
                                 if (balance) {
-                                    this.onBalance({ update: balance });
+                                    this.emit('balance', { update: balance });
                                 }
                             }
                         }
                         else if (isBitfinexWalletUpdateMessage(data)) {
                             balance = this.parseBalance(data[2]);
                             if (balance) {
-                                this.onBalance({ update: balance });
+                                this.emit('balance', { update: balance });
                             }
                         }
                         _b.label = 4;
