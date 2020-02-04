@@ -42,6 +42,7 @@ export declare type Order = {
     trades?: Trade[];
     clientId?: string;
     info?: any;
+    executed?: number;
 };
 export declare enum OrderEventType {
     ORDER_CREATED = "ORDER_CREATED",

@@ -21,7 +21,7 @@ export type Trade = {
   };
 };
 
-export type OrderExecutionType = 'limit' | 'market' | undefined;
+export type OrderExecutionType = 'limit' | 'market' | string | undefined;
 export type OrderStatus = 'open' | 'closed' | 'canceled' | 'failed' | 'unknown';
 export type Order = {
   id: string;

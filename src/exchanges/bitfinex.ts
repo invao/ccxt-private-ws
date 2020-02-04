@@ -62,18 +62,20 @@ type BitfinexOrderMessageContent = [
   number, // AMOUNT_ORIG 7
 
 
-    | 'LIMIT'
-    | 'MARKET'
-    | 'STOP'
-    | 'TRAILING STOP'
-    | 'EXCHANGE MARKET'
-    | 'EXCHANGE LIMIT'
-    | 'EXCHANGE STOP'
-    | 'EXCHANGE TRAILING STOP'
-    | 'FOK'
-    | 'EXCHANGE FOK'
-    | 'IOC'
-    | 'EXCHANGE IOC', // TYPE 8
+  | 'LIMIT'
+  | 'MARKET'
+  | 'STOP'
+  | 'TRAILING STOP'
+  | 'EXCHANGE MARKET'
+  | 'EXCHANGE LIMIT'
+  | 'EXCHANGE STOP'
+  | 'EXCHANGE STOP LIMIT'
+  | 'EXCHANGE TRAILING STOP'
+  | 'TRAILING STOP'
+  | 'FOK'
+  | 'EXCHANGE FOK'
+  | 'IOC'
+  | 'EXCHANGE IOC', // TYPE 8
   null, // TYPE_PREV 9
   null, // MTS_TIF 10
   null, // _PLACEHOLDER 11
@@ -242,6 +244,12 @@ export class bitfinex extends BaseClient {
       case 'EXCHANGE LIMIT':
       case 'LIMIT':
         return 'limit';
+      case 'EXCHANGE STOP LIMIT':
+      case 'EXCHANGE STOP':
+        return 'stop';
+      case 'EXCHANGE TRAILING STOP':
+      case 'TRAILING STOP':
+        return 'trailing-stop';
     }
 
     return 'market';
@@ -268,7 +276,8 @@ export class bitfinex extends BaseClient {
       price: data[17],
       remaining: Math.abs(data[6]),
       side: data[7] > 0 ? 'buy' : 'sell',
-      status
+      status,
+      info: data
     };
 
     return order;
@@ -326,9 +335,9 @@ export class bitfinex extends BaseClient {
     return 'unknown';
   };
 
-  private parseBalance = (message: BitfinexWalletUpdateMessageContent): BalanceUpdate|undefined => {
+  private parseBalance = (message: BitfinexWalletUpdateMessageContent): BalanceUpdate | undefined => {
     const currency = message[1];
-    const free = message[4] ;
+    const free = message[4];
     if (free === null) {
       this.send(JSON.stringify([0, 'calc', null, [[`wallet_funding_${currency}`]]]));
       return undefined;
