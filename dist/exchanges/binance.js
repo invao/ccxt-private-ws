@@ -293,7 +293,6 @@ var binance = /** @class */ (function (_super) {
             var order = {
                 amount: amount,
                 cost: cost,
-                average: cost / filled,
                 datetime: moment_1.default(message.T).toISOString(),
                 timestamp: message.T,
                 filled: parseFloat(message.z),

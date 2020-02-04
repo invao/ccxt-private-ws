@@ -212,7 +212,7 @@ var kraken = /** @class */ (function (_super) {
                 if (krakenOrder.descr) {
                     krakenOrder.descr.pair = undefined; // ccxt generates DAI//USD instead of DAI/USD as symbol
                 }
-                order = __assign(__assign({}, this._publicCcxtInstance.parseOrder(__assign(__assign({}, (originalOrder ? originalOrder.info : {})), krakenOrder), symbol ? this._publicCcxtInstance.getMarket(symbol) : undefined)), { clientId: krakenOrder.userref ? krakenOrder.userref.toString() : undefined, id: id });
+                order = __assign(__assign({}, this._publicCcxtInstance.parseOrder(__assign(__assign({}, (originalOrder ? originalOrder.info : {})), krakenOrder), symbol ? this._publicCcxtInstance.market(symbol) : undefined)), { clientId: krakenOrder.userref ? krakenOrder.userref.toString() : undefined, id: id });
                 mergedOrder = R.mergeDeepWith(function (left, right) { return (right === undefined ? left : right); }, originalOrder, order);
                 return [2 /*return*/, mergedOrder];
             });

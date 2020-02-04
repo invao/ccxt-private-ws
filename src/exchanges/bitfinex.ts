@@ -257,7 +257,7 @@ export class bitfinex extends BaseClient {
 
   private parseOrder = (data: BitfinexOrderMessageContent) => {
     const status = this.parseOrderStatus(data[13]);
-    let market: { symbol: string } = this._ccxtInstance.getMarket(data[3].substr(1, 6));
+    let market: { symbol: string } = this._ccxtInstance.market(data[3].substr(1, 6));
     if (!market) {
       market = { symbol: data[3].substr(1, 3) + '/' + data[3].substr(4, 3) };
     }
@@ -271,7 +271,6 @@ export class bitfinex extends BaseClient {
       amount: Math.abs(data[7]),
       filled: Math.abs(data[7]) - Math.abs(data[6]),
       type: this.getOrderType(data[8]),
-      average: data[17],
       cost: Math.abs(data[17] * data[7]),
       price: data[17],
       remaining: Math.abs(data[6]),

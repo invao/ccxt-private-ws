@@ -143,7 +143,7 @@ export class kraken extends BaseClient {
     const order: Order = {
       ...this._publicCcxtInstance.parseOrder(
         { ...(originalOrder ? originalOrder.info : {}), ...krakenOrder },
-        symbol ? this._publicCcxtInstance.getMarket(symbol) : undefined
+        symbol ? this._publicCcxtInstance.market(symbol) : undefined
       ),
       clientId: krakenOrder.userref ? krakenOrder.userref.toString() : undefined,
       id

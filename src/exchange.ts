@@ -8,7 +8,7 @@ export type Trade = {
   datetime: string;
   symbol: string;
   order?: string;
-  type: OrderExecutionType;
+  type?: OrderExecutionType;
   side: 'buy' | 'sell';
   takerOrMaker: 'taker' | 'maker';
   price: number;
@@ -33,7 +33,6 @@ export type Order = {
   price: number;
   amount: number;
   cost: number;
-  average: number;
   filled: number;
   remaining: number;
   status: OrderStatus;

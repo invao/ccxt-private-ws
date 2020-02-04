@@ -26,7 +26,7 @@
   },
   "dependencies": {
     "async-lock": "^1.2.2",
-    "ccxt": "^1.18.1210",
+    "ccxt": "^1.22.34",
     "crypto-js": "^3.1.9-1",
     "moment": "^2.24.0",
     "node-fetch": "^2.6.0",

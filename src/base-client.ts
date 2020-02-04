@@ -231,7 +231,6 @@ export abstract class BaseClient extends EventEmitter implements Exchange {
         this._orders[orderId] = {
           id: orderId,
           amount: 0,
-          average: 0,
           cost: 0,
           datetime: '',
           filled: 0,

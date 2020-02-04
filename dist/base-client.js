@@ -267,7 +267,6 @@ var BaseClient = /** @class */ (function (_super) {
                                     _this._orders[orderId] = {
                                         id: orderId,
                                         amount: 0,
-                                        average: 0,
                                         cost: 0,
                                         datetime: '',
                                         filled: 0,

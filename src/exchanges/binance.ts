@@ -187,7 +187,7 @@ export class binance extends BaseClient {
 
     if (!this._keepAliveInterval) {
       this._keepAliveInterval= setInterval(this._keepAlive, 1000 * 60 * 30);
-    } 
+    }
 
     this._listenKey = data.listenKey;
     this.setUrl(`wss://stream.binance.com:9443/ws/${this._listenKey}`);
@@ -255,7 +255,6 @@ export class binance extends BaseClient {
     const order: Order = {
       amount,
       cost,
-      average: cost / filled,
       datetime: moment(message.T).toISOString(),
       timestamp: message.T,
       filled: parseFloat(message.z),
