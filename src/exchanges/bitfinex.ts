@@ -263,7 +263,7 @@ export class bitfinex extends BaseClient {
     }
 
     const order: Order = {
-      id: data[0],
+      id: parseInt(data[0]),
       clientId: data[2] ? data[2].toString() : undefined,
       symbol: market.symbol,
       timestamp: data[4],
@@ -287,6 +287,7 @@ export class bitfinex extends BaseClient {
     const price = data[5];
     const timestamp = data[2];
 
+    const symbol = data[1].substr(1, 6);
     const trade: Trade = {
       id: data[0],
       timestamp,
@@ -302,7 +303,7 @@ export class bitfinex extends BaseClient {
       datetime: moment(timestamp).toISOString(),
       order: data[3],
       side: data[4] > 0 ? 'buy' : 'sell',
-      symbol: this._ccxtInstance.findSymbol(data[1].substr(1, 6)),
+      symbol: this._ccxtInstance.markets_by_id[symbol] ? this._ccxtInstance.markets_by_id[symbol].symbol : symbol,
       type: this.getOrderType(data[6])
     };
 

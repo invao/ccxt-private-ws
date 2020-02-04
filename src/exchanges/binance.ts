@@ -177,7 +177,7 @@ export class binance extends BaseClient {
 
   private _keepAlive = async () => {
     const ccxtInstance = new ccxt['binance']({ ...this.getCredentials() });
-    await ccxtInstance.publicPutUserDataStream({ listenKey: this._listenKey});
+    await ccxtInstance.publicPutUserDataStream({ listenKey: this._listenKey });
   }
 
   private _doAuth = async () => {
@@ -186,7 +186,7 @@ export class binance extends BaseClient {
     const data = await ccxtInstance.publicPostUserDataStream();
 
     if (!this._keepAliveInterval) {
-      this._keepAliveInterval= setInterval(this._keepAlive, 1000 * 60 * 30);
+      this._keepAliveInterval = setInterval(this._keepAlive, 1000 * 60 * 30);
     }
 
     this._listenKey = data.listenKey;
@@ -197,7 +197,7 @@ export class binance extends BaseClient {
     await this._doAuth();
   };
 
-  protected onOpen = async () => {};
+  protected onOpen = async () => { };
 
   public createOrder = async ({ order }: { order: OrderInput }) => {
     const ccxtInstance = new ccxt['binance']({ ...this.getCredentials() });
@@ -263,7 +263,7 @@ export class binance extends BaseClient {
       remaining: amount - filled,
       side: message.S === 'BUY' ? 'buy' : 'sell',
       status: statuses[message.X],
-      symbol: this._publicCcxtInstance.findSymbol(message.s),
+      symbol: this._publicCcxtInstance.markets_by_id[message.s] ? this._publicCcxtInstance.markets_by_id[message.s].symbol : message.s,
       trades: [],
       type: this.getOrderType(message.o),
       clientId: message.c,
@@ -286,7 +286,7 @@ export class binance extends BaseClient {
       info: message,
       timestamp: message.T,
       datetime: moment(message.T).toISOString(),
-      symbol: this._publicCcxtInstance.findSymbol(message.s),
+      symbol: this._publicCcxtInstance.markets_by_id[message.s] ? this._publicCcxtInstance.markets_by_id[message.s].symbol : message.s,
       id: message.t.toString(),
       order: message.c,
       type: this.getOrderType(message.o),

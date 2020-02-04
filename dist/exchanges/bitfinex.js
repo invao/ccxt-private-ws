@@ -251,6 +251,7 @@ var bitfinex = /** @class */ (function (_super) {
             var amount = Math.abs(data[4]);
             var price = data[5];
             var timestamp = data[2];
+            var symbol = data[1].substr(1, 6);
             var trade = {
                 id: data[0],
                 timestamp: timestamp,
@@ -266,7 +267,7 @@ var bitfinex = /** @class */ (function (_super) {
                 datetime: moment_1.default(timestamp).toISOString(),
                 order: data[3],
                 side: data[4] > 0 ? 'buy' : 'sell',
-                symbol: _this._ccxtInstance.findSymbol(data[1].substr(1, 6)),
+                symbol: _this._ccxtInstance.markets_by_id[symbol] ? _this._ccxtInstance.markets_by_id[symbol].symbol : symbol,
                 type: _this.getOrderType(data[6])
             };
             return trade;
