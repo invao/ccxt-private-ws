@@ -225,7 +225,7 @@ var bitfinex = /** @class */ (function (_super) {
         };
         _this.parseOrder = function (data) {
             var status = _this.parseOrderStatus(data[13]);
-            var market = _this._ccxtInstance.market(data[3].substr(1, 3) + '/' + data[3].substr(3, 3));
+            var market = _this._ccxtInstance.market(data[3].substr(1, 3) + '/' + data[3].substr(4, 3));
             if (!market) {
                 market = { symbol: data[3].substr(1, 3) + '/' + data[3].substr(4, 3) };
             }
