@@ -19,7 +19,7 @@ export declare type Trade = {
         rate?: number;
     };
 };
-export declare type OrderExecutionType = 'limit' | 'market' | undefined;
+export declare type OrderExecutionType = 'limit' | 'market' | string | undefined;
 export declare type OrderStatus = 'open' | 'closed' | 'canceled' | 'failed' | 'unknown';
 export declare type Order = {
     id: string;
@@ -42,7 +42,6 @@ export declare type Order = {
     trades?: Trade[];
     clientId?: string;
     info?: any;
-    executed?: number;
 };
 export declare enum OrderEventType {
     ORDER_CREATED = "ORDER_CREATED",

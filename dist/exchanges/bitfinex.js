@@ -214,12 +214,18 @@ var bitfinex = /** @class */ (function (_super) {
                 case 'EXCHANGE LIMIT':
                 case 'LIMIT':
                     return 'limit';
+                case 'EXCHANGE STOP LIMIT':
+                case 'EXCHANGE STOP':
+                    return 'stop';
+                case 'EXCHANGE TRAILING STOP':
+                case 'TRAILING STOP':
+                    return 'trailing-stop';
             }
             return 'market';
         };
         _this.parseOrder = function (data) {
             var status = _this.parseOrderStatus(data[13]);
-            var market = _this._ccxtInstance.findMarket(data[3].substr(1, 6));
+            var market = _this._ccxtInstance.getMarket(data[3].substr(1, 6));
             if (!market) {
                 market = { symbol: data[3].substr(1, 3) + '/' + data[3].substr(4, 3) };
             }
@@ -237,7 +243,8 @@ var bitfinex = /** @class */ (function (_super) {
                 price: data[17],
                 remaining: Math.abs(data[6]),
                 side: data[7] > 0 ? 'buy' : 'sell',
-                status: status
+                status: status,
+                info: data
             };
             return order;
         };
