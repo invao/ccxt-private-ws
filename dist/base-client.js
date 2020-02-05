@@ -242,7 +242,7 @@ var BaseClient = /** @class */ (function (_super) {
             var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, this.lock.acquire(order.id, function () {
+                    case 0: return [4 /*yield*/, this.lock.acquire(order.id.toString(), function () {
                             if (!_this._orders[order.id]) {
                                 _this._orders[order.id] = order;
                             }

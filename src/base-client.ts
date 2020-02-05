@@ -17,7 +17,7 @@ import {
   OrderListener,
   Trade,
   BalanceEvent
-  } from './exchange';
+} from './exchange';
 import { ExchangeName } from './';
 
 export abstract class BaseClient extends EventEmitter implements Exchange {
@@ -208,12 +208,12 @@ export abstract class BaseClient extends EventEmitter implements Exchange {
     }
   };
 
-  protected getCachedOrder = (id: string) => {
+  protected getCachedOrder = (id: string | number ) => {
     return this._orders[id];
   };
 
   protected saveCachedOrder = async (order: Order) => {
-    await this.lock.acquire(order.id, () => {
+    await this.lock.acquire(order.id.toString(), () => {
       if (!this._orders[order.id]) {
         this._orders[order.id] = order;
       } else {
@@ -265,7 +265,7 @@ export abstract class BaseClient extends EventEmitter implements Exchange {
     this._url = url;
   };
 
-  protected updateFeeFromTrades = async ({ orderId }: { orderId: string }) => {
+  protected updateFeeFromTrades = async ({ orderId }: { orderId: string | number }) => {
     if (!this.getCachedOrder(orderId)) {
       throw new Error('Order does not exist.');
     }

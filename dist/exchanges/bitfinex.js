@@ -230,7 +230,7 @@ var bitfinex = /** @class */ (function (_super) {
                 market = { symbol: data[3].substr(1, 3) + '/' + data[3].substr(4, 3) };
             }
             var order = {
-                id: data[0],
+                id: parseInt(data[0]),
                 clientId: data[2] ? data[2].toString() : undefined,
                 symbol: market.symbol,
                 timestamp: data[4],

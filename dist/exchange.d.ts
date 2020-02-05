@@ -22,7 +22,7 @@ export declare type Trade = {
 export declare type OrderExecutionType = 'limit' | 'market' | string | undefined;
 export declare type OrderStatus = 'open' | 'closed' | 'canceled' | 'failed' | 'unknown';
 export declare type Order = {
-    id: string;
+    id: string | number;
     timestamp: number;
     datetime: string;
     symbol: string;

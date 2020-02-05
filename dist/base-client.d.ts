@@ -48,7 +48,7 @@ export declare abstract class BaseClient extends EventEmitter implements Exchang
     subscribeBalances: () => void;
     protected onOrder: (event: OrderEvent) => void;
     protected debug: (message: string) => void;
-    protected getCachedOrder: (id: string) => Order;
+    protected getCachedOrder: (id: string | number) => Order;
     protected saveCachedOrder: (order: Order) => Promise<void>;
     protected saveCachedTrade: ({ trade, orderId }: {
         trade: Trade;
@@ -56,6 +56,6 @@ export declare abstract class BaseClient extends EventEmitter implements Exchang
     }) => Promise<Order>;
     protected setUrl: (url: string) => void;
     protected updateFeeFromTrades: ({ orderId }: {
-        orderId: string;
+        orderId: string | number;
     }) => Promise<void>;
 }
