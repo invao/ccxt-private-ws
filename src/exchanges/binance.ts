@@ -228,13 +228,9 @@ export class binance extends BaseClient {
   };
 
   private getOrderType = (type: 'LIMIT' | 'MARKET'): OrderExecutionType => {
-    const types: Record<'LIMIT' | 'MARKET', OrderExecutionType> = {
-      LIMIT: 'limit',
-      MARKET: 'market'
-    };
-
-    return types[type];
+    return type.toLocaleLowerCase();
   };
+
   private parseOrder = (message: BinanceOrderMessage): Order => {
     const statuses: Record<BinanceOrderStatus, OrderStatus> = {
       NEW: 'open',

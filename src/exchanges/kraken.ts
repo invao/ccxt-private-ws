@@ -51,7 +51,7 @@ const isKrakenOpenOrdersMessage = (message: KrakenMessage): message is KrakenOpe
 export class kraken extends BaseClient {
   private _publicCcxtInstance: ccxt.Exchange;
   constructor(params: KrakenConstructorParams) {
-    super({ ...params, url: 'wss://beta-ws.kraken.com/', name: 'kraken' });
+    super({ ...params, url: 'wss://ws-auth.kraken.com/', name: 'kraken' });
     this.subscriptionKeyMapping = {
       orders: 'openOrders'
     };
@@ -143,7 +143,7 @@ export class kraken extends BaseClient {
     const order: Order = {
       ...this._publicCcxtInstance.parseOrder(
         { ...(originalOrder ? originalOrder.info : {}), ...krakenOrder },
-        symbol ? this._publicCcxtInstance.market(symbol) : undefined
+        symbol ? this._publicCcxtInstance.markets_by_id[symbol] : undefined
       ),
       clientId: krakenOrder.userref ? krakenOrder.userref.toString() : undefined,
       id

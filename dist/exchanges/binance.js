@@ -269,11 +269,7 @@ var binance = /** @class */ (function (_super) {
             return id;
         };
         _this.getOrderType = function (type) {
-            var types = {
-                LIMIT: 'limit',
-                MARKET: 'market'
-            };
-            return types[type];
+            return type.toLocaleLowerCase();
         };
         _this.parseOrder = function (message) {
             var statuses = {

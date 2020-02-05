@@ -80,7 +80,7 @@ var isKrakenOpenOrdersMessage = function (message) {
 var kraken = /** @class */ (function (_super) {
     __extends(kraken, _super);
     function kraken(params) {
-        var _this = _super.call(this, __assign(__assign({}, params), { url: 'wss://beta-ws.kraken.com/', name: 'kraken' })) || this;
+        var _this = _super.call(this, __assign(__assign({}, params), { url: 'wss://ws-auth.kraken.com/', name: 'kraken' })) || this;
         _this.onMessage = function (event) { return __awaiter(_this, void 0, void 0, function () {
             var data, _loop_1, this_1, _i, _a, message;
             var _this = this;
@@ -212,7 +212,7 @@ var kraken = /** @class */ (function (_super) {
                 if (krakenOrder.descr) {
                     krakenOrder.descr.pair = undefined; // ccxt generates DAI//USD instead of DAI/USD as symbol
                 }
-                order = __assign(__assign({}, this._publicCcxtInstance.parseOrder(__assign(__assign({}, (originalOrder ? originalOrder.info : {})), krakenOrder), symbol ? this._publicCcxtInstance.market(symbol) : undefined)), { clientId: krakenOrder.userref ? krakenOrder.userref.toString() : undefined, id: id });
+                order = __assign(__assign({}, this._publicCcxtInstance.parseOrder(__assign(__assign({}, (originalOrder ? originalOrder.info : {})), krakenOrder), symbol ? this._publicCcxtInstance.markets_by_id[symbol] : undefined)), { clientId: krakenOrder.userref ? krakenOrder.userref.toString() : undefined, id: id });
                 mergedOrder = R.mergeDeepWith(function (left, right) { return (right === undefined ? left : right); }, originalOrder, order);
                 return [2 /*return*/, mergedOrder];
             });
