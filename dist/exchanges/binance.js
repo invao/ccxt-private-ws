@@ -300,7 +300,7 @@ var binance = /** @class */ (function (_super) {
                 symbol: _this._publicCcxtInstance.markets_by_id[message.s] ? _this._publicCcxtInstance.markets_by_id[message.s].symbol : message.s,
                 trades: [],
                 type: _this.getOrderType(message.o),
-                clientId: message.c,
+                clientId: message.C ? message.C : undefined,
                 id: id
             };
             var mergedOrder = R.mergeDeepWith(function (left, right) { return (right === undefined ? left : right); }, originalOrder, order);
