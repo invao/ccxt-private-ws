@@ -232,7 +232,7 @@ var BaseClient = /** @class */ (function (_super) {
         };
         _this.debug = function (message) {
             if (_this._debug) {
-                console.log(message);
+                console.log('DEBUG:', message);
             }
         };
         _this.getCachedOrder = function (id) {

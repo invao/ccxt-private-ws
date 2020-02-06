@@ -204,7 +204,7 @@ export abstract class BaseClient extends EventEmitter implements Exchange {
 
   protected debug = (message: string) => {
     if (this._debug) {
-      console.log(message);
+      console.log('DEBUG:', message);
     }
   };
 

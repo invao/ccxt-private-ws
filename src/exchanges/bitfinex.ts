@@ -263,7 +263,7 @@ export class bitfinex extends BaseClient {
     }
 
     const order: Order = {
-      id: parseInt(data[0]),
+      id: data[0].toString(),
       clientId: data[2] ? data[2].toString() : undefined,
       symbol: market.symbol,
       timestamp: data[4],
