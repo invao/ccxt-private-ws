@@ -262,7 +262,7 @@ export class binance extends BaseClient {
       symbol: this._publicCcxtInstance.markets_by_id[message.s] ? this._publicCcxtInstance.markets_by_id[message.s].symbol : message.s,
       trades: [],
       type: this.getOrderType(message.o),
-      clientId: message.C ? message.C : undefined,
+      clientId: message.c ? message.c : undefined,
       id
     };
 
