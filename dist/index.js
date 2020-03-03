@@ -10,5 +10,7 @@ var binance_1 = require("./exchanges/binance");
 exports.binance = binance_1.binance;
 var kraken_1 = require("./exchanges/kraken");
 exports.kraken = kraken_1.kraken;
+var ftx_1 = require("./exchanges/ftx");
+exports.ftx = ftx_1.ftx;
 __export(require("./exchange"));
 //# sourceMappingURL=index.js.map
