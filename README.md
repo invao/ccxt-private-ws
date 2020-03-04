@@ -17,6 +17,7 @@ A JavaScript library for cryptocurrency trading using authenticated websocket co
 | Bitfinex | &#9989; | &#9989;  |
 | Binance  | &#9989; | &#9989;  | Order creation/cancellation via REST API |
 | Kraken   | &#9989; | &#10060; | Order creation/cancellation via REST API |
+| Ftx      | &#9989; | &#10060; | Order creation/cancellation via REST API |
 
 ## Installation
 
