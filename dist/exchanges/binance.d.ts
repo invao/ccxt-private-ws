@@ -1,5 +1,5 @@
-import { ExchangeCredentials, OrderInput } from '../exchange';
 import { BaseClient } from '../base-client';
+import { ExchangeCredentials, OrderInput } from '../exchange';
 declare type BinanceConstructorParams = {
     credentials: ExchangeCredentials;
 };

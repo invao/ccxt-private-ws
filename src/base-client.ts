@@ -16,27 +16,31 @@ import {
   OrderInput,
   OrderListener,
   Trade,
-  BalanceEvent
+  BalanceEvent,
+  WalletType,
 } from './exchange';
 import { ExchangeName } from './';
 
 export abstract class BaseClient extends EventEmitter implements Exchange {
-  private readonly _name: ExchangeName;
-  private _url?: string;
+
   protected _ws?: ReconnectingWebSocket;
-  private _connected?: Promise<boolean>;
   protected _credentials: ExchangeCredentials;
   protected _random: Function;
   protected _debug: boolean;
   protected _ccxtInstance: ccxt.Exchange;
-  private _?: OrderListener;
-  private _resolveConnect?: Function;
   protected _subscribeFilter: string[];
   protected subscriptionKeyMapping: Record<string, string | string[]>;
-  private _orders: Record<string, Order>;
   protected lock: AsyncLock;
   protected lockDomain: domain.Domain;
   protected preConnect?: () => void;
+  protected _walletType?: WalletType;
+
+  private readonly _name: ExchangeName;
+  private _url?: string;
+  private _connected?: Promise<boolean>;
+  private _?: OrderListener;
+  private _resolveConnect?: Function;
+  private _orders: Record<string, Order>;
 
   constructor(params: ExchangeConstructorParameters & ExchangeConstructorOptionalParameters) {
     super();
@@ -51,6 +55,7 @@ export abstract class BaseClient extends EventEmitter implements Exchange {
     this._orders = {};
     this.lock = new AsyncLock({ domainReentrant: true });
     this.lockDomain = domain.create();
+    this._walletType = this.getCredentials().walletType;
   }
 
   // Class interface to be implemented by specific exchanges
@@ -208,7 +213,7 @@ export abstract class BaseClient extends EventEmitter implements Exchange {
     }
   };
 
-  protected getCachedOrder = (id: string | number ) => {
+  protected getCachedOrder = (id: string | number) => {
     return this._orders[id];
   };
 
@@ -219,7 +224,7 @@ export abstract class BaseClient extends EventEmitter implements Exchange {
       } else {
         this._orders[order.id] = {
           ...order,
-          trades: this._orders[order.id].trades
+          trades: this._orders[order.id].trades,
         };
       }
     });
@@ -240,7 +245,7 @@ export abstract class BaseClient extends EventEmitter implements Exchange {
           status: 'unknown',
           symbol: '',
           timestamp: 0,
-          type: undefined
+          type: undefined,
         };
       }
 
@@ -249,7 +254,7 @@ export abstract class BaseClient extends EventEmitter implements Exchange {
       if (!order.trades) {
         order.trades = [trade];
       } else {
-        const originalTradeIndex = R.findIndex(t => t.id === trade.id, order.trades);
+        const originalTradeIndex = R.findIndex((t) => t.id === trade.id, order.trades);
         if (originalTradeIndex === -1) {
           order.trades.push(trade);
         } else {
@@ -279,7 +284,7 @@ export abstract class BaseClient extends EventEmitter implements Exchange {
           if (!fee || !fee.currency) {
             fee = {
               currency: trade.fee.currency,
-              cost: trade.fee.cost
+              cost: trade.fee.cost,
             };
           } else {
             if (fee.currency !== trade.fee.currency) {

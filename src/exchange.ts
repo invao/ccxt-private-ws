@@ -1,4 +1,5 @@
 import ccxt from 'ccxt';
+
 import { ExchangeName } from '.';
 
 export type Trade = {
@@ -75,6 +76,8 @@ export type ConnectListener = () => void;
 
 export type BalanceUpdate = ccxt.Balances;
 
+export type WalletType = 'spot' | 'margin' | 'future';
+
 export type ExchangeConstructorParameters = {
   name: ExchangeName;
   url: string;
@@ -86,6 +89,7 @@ export type ExchangeConstructorOptionalParameters = {
 };
 
 export type StaticExchangeCredentials = {
+  walletType?: WalletType;
   apiKey?: string;
   secret?: string;
   uid?: string;

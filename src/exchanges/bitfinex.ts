@@ -1,18 +1,21 @@
-import {
-  OrderEventType,
-  Order,
-  OrderExecutionType,
-  Trade,
-  OrderInput,
-  ExchangeConstructorOptionalParameters,
-  BalanceUpdate
-} from '../exchange';
 import crypto from 'crypto-js';
 import moment from 'moment';
+
 import { BaseClient } from '../base-client';
+import {
+  BalanceUpdate,
+  ExchangeConstructorOptionalParameters,
+  Order,
+  OrderEventType,
+  OrderExecutionType,
+  OrderInput,
+  Trade,
+  WalletType,
+} from '../exchange';
 
 type BitfinexConstructorParams = {
   credentials: {
+    walletType?: WalletType;
     apiKey: string;
     secret: string;
   };
@@ -21,20 +24,20 @@ type BitfinexConstructorParams = {
 enum BitfinexOrderMessageCommands {
   NEW_ORDER = 'on',
   ORDER_CLOSED = 'oc',
-  ORDER_UPDATED = 'ou'
+  ORDER_UPDATED = 'ou',
 }
 
 enum BitfinexTradeMessageCommands {
   TRADE_EXECUTED = 'tu',
-  TRADE_EXECUTED_UPDATED = 'te'
+  TRADE_EXECUTED_UPDATED = 'te',
 }
 
 enum BitfinexWalletMessageCommands {
-  WALLET_STATUS = 'ws'
+  WALLET_STATUS = 'ws',
 }
 
 enum BitfinexWalletUpdateMessageCommands {
-  WALLET_UPDATED = 'wu'
+  WALLET_UPDATED = 'wu',
 }
 
 type BitfinexMessage =
@@ -61,21 +64,22 @@ type BitfinexOrderMessageContent = [
   number, // AMOUNT 6
   number, // AMOUNT_ORIG 7
 
-
-  | 'LIMIT'
-  | 'MARKET'
-  | 'STOP'
-  | 'TRAILING STOP'
-  | 'EXCHANGE MARKET'
-  | 'EXCHANGE LIMIT'
-  | 'EXCHANGE STOP'
-  | 'EXCHANGE STOP LIMIT'
-  | 'EXCHANGE TRAILING STOP'
-  | 'TRAILING STOP'
-  | 'FOK'
-  | 'EXCHANGE FOK'
-  | 'IOC'
-  | 'EXCHANGE IOC', // TYPE 8
+  (
+    | 'LIMIT'
+    | 'MARKET'
+    | 'STOP'
+    | 'TRAILING STOP'
+    | 'EXCHANGE MARKET'
+    | 'EXCHANGE LIMIT'
+    | 'EXCHANGE STOP'
+    | 'EXCHANGE STOP LIMIT'
+    | 'EXCHANGE TRAILING STOP'
+    | 'TRAILING STOP'
+    | 'FOK'
+    | 'EXCHANGE FOK'
+    | 'IOC'
+    | 'EXCHANGE IOC'
+  ), // TYPE 8
   null, // TYPE_PREV 9
   null, // MTS_TIF 10
   null, // _PLACEHOLDER 11
@@ -143,18 +147,37 @@ const isBitfinexWalletUpdateMessage = (message: BitfinexMessage): message is Bit
   );
 };
 
+const balanceWalletType = (wallet?: string): WalletType | undefined => {
+  switch (wallet) {
+    case 'margin':
+      return 'margin';
+    case null:
+    case undefined:
+    case 'exchange':
+      return 'spot';
+    default:
+      return undefined;
+  }
+};
+
 export class bitfinex extends BaseClient {
   private _orderTypeMap = {
-    limit: 'EXCHANGE LIMIT'
+    limit: 'EXCHANGE LIMIT',
   };
 
   constructor(params: BitfinexConstructorParams & ExchangeConstructorOptionalParameters) {
     super({ ...params, url: 'wss://api.bitfinex.com/ws/2', name: 'bitfinex' });
+    this._walletType = this._walletType || 'spot';
+    
     this.subscriptionKeyMapping = {
       orders: 'trading',
-      balance: 'wallet'
+      balance: 'wallet',
     };
   }
+
+  public createClientId = () => {
+    return this._random().toString();
+  };
 
   protected onMessage = async (event: MessageEvent) => {
     const data: BitfinexMessage = JSON.parse(event.data);
@@ -185,27 +208,12 @@ export class bitfinex extends BaseClient {
     }
   };
 
-  private _doAuth = () => {
-    const credentials = this.getCredentials();
-    this.assertConnected();
-    const authNonce = Date.now() * 1000;
-    const authPayload = 'AUTH' + authNonce;
-    const authSig = crypto.HmacSHA384(authPayload, credentials.secret).toString(crypto.enc.Hex);
-
-    const payload = {
-      apiKey: credentials.apiKey,
-      authSig,
-      authNonce,
-      authPayload,
-      event: 'auth',
-      filter: this._subscribeFilter
+  public cancelOrder = async ({ id }: { id: string }) => {
+    const orderData = {
+      id,
     };
-
+    const payload = [0, 'oc', null, orderData];
     this.send(JSON.stringify(payload));
-  };
-
-  public createClientId = () => {
-    return this._random().toString();
   };
 
   protected onOpen = () => {
@@ -222,17 +230,28 @@ export class bitfinex extends BaseClient {
       symbol: `t${marketId}`,
       amount: order.side === 'buy' ? order.amount.toString() : (-1 * order.amount).toString(),
       price: order.price.toString(),
-      flags: 0
+      flags: 0,
     };
     const payload = [0, 'on', null, orderData];
     this.send(JSON.stringify(payload));
   };
 
-  public cancelOrder = async ({ id }: { id: string }) => {
-    const orderData = {
-      id
+  private _doAuth = () => {
+    const credentials = this.getCredentials();
+    this.assertConnected();
+    const authNonce = Date.now() * 1000;
+    const authPayload = 'AUTH' + authNonce;
+    const authSig = crypto.HmacSHA384(authPayload, credentials.secret).toString(crypto.enc.Hex);
+
+    const payload = {
+      apiKey: credentials.apiKey,
+      authSig,
+      authNonce,
+      authPayload,
+      event: 'auth',
+      filter: this._subscribeFilter,
     };
-    const payload = [0, 'oc', null, orderData];
+
     this.send(JSON.stringify(payload));
   };
 
@@ -257,7 +276,9 @@ export class bitfinex extends BaseClient {
 
   private parseOrder = (data: BitfinexOrderMessageContent) => {
     const status = this.parseOrderStatus(data[13]);
-    let market: { symbol: string } = this._ccxtInstance.market(data[3].substr(1, 3) + '/' + data[3].substr(4, 3) );
+    let market: { symbol: string } = this._ccxtInstance.market(
+      data[3].substr(1, 3) + '/' + data[3].substr(4, 3)
+    );
     if (!market) {
       market = { symbol: data[3].substr(1, 3) + '/' + data[3].substr(4, 3) };
     }
@@ -276,7 +297,7 @@ export class bitfinex extends BaseClient {
       remaining: Math.abs(data[6]),
       side: data[7] > 0 ? 'buy' : 'sell',
       status,
-      info: data
+      info: data,
     };
 
     return order;
@@ -296,15 +317,17 @@ export class bitfinex extends BaseClient {
       takerOrMaker: data[8] === 1 ? 'maker' : 'taker',
       fee: {
         cost: Math.abs(data[9]),
-        currency: data[10]
+        currency: data[10],
       },
       info: data,
       cost: price * amount,
       datetime: moment(timestamp).toISOString(),
       order: data[3],
       side: data[4] > 0 ? 'buy' : 'sell',
-      symbol: this._ccxtInstance.markets_by_id[symbol] ? this._ccxtInstance.markets_by_id[symbol].symbol : symbol,
-      type: this.getOrderType(data[6])
+      symbol: this._ccxtInstance.markets_by_id[symbol]
+        ? this._ccxtInstance.markets_by_id[symbol].symbol
+        : symbol,
+      type: this.getOrderType(data[6]),
     };
 
     return trade;
@@ -336,6 +359,10 @@ export class bitfinex extends BaseClient {
   };
 
   private parseBalance = (message: BitfinexWalletUpdateMessageContent): BalanceUpdate | undefined => {
+    if (this._walletType !== balanceWalletType(message[0])) {
+      return undefined;
+    }
+
     const currency = message[1];
     const free = message[4];
     if (free === null) {
@@ -347,9 +374,9 @@ export class bitfinex extends BaseClient {
       [currency]: {
         free,
         total: message[2],
-        used: message[3]
+        used: message[3],
       },
       info: message as any,
-    }
+    };
   };
 }

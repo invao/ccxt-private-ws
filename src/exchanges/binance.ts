@@ -1,24 +1,26 @@
+import ccxt from 'ccxt';
+import moment from 'moment';
+import * as R from 'ramda';
+
+import { BaseClient } from '../base-client';
 import {
+  BalanceUpdate,
   ExchangeCredentials,
-  OrderInput,
-  OrderExecutionType,
   Order,
   OrderEventType,
+  OrderExecutionType,
+  OrderInput,
   OrderStatus,
   Trade,
-  BalanceUpdate
+  WalletType,
 } from '../exchange';
-import ccxt from 'ccxt';
-import * as R from 'ramda';
-import moment from 'moment';
-import { BaseClient } from '../base-client';
 
 enum BinanceOrderExecutionType {
   NEW = 'NEW',
   CANCELED = 'CANCELED',
   REPLACED = 'REPLACED',
   REJECTED = 'REJECTED',
-  EXPIRED = 'EXPIRED'
+  EXPIRED = 'EXPIRED',
 }
 
 enum BinanceOrderStatus {
@@ -28,7 +30,7 @@ enum BinanceOrderStatus {
   CANCELED = 'CANCELED',
   PENDING_CANCEL = 'PENDING_CANCEL',
   REJECTED = 'REJECTED',
-  EXPIRED = 'EXPIRED'
+  EXPIRED = 'EXPIRED',
 }
 
 type BinanceMessage =
@@ -137,6 +139,7 @@ export class binance extends BaseClient {
     super({ ...params, url: '', name: 'binance' });
     this.subscriptionKeyMapping = {};
     this._publicCcxtInstance = new ccxt['binance']();
+    this._walletType = this._walletType || 'spot';
   }
 
   protected onMessage = async (event: MessageEvent) => {
@@ -162,12 +165,12 @@ export class binance extends BaseClient {
         await this.updateFeeFromTrades({ orderId });
         this.onOrder({ type, order: this.getCachedOrder(orderId) });
       });
-    } else if (isBinanceAccountInfoMessage(data)) {
+    } else if (this._walletType === 'spot' && isBinanceAccountInfoMessage(data)) {
       const balance = this.parseBalance(data);
       if (balance) {
         this.emit('fullBalance', { update: balance });
       }
-    } else if (isBinanceAccountPositionMessage(data)) {
+    } else if (this._walletType === 'spot' && isBinanceAccountPositionMessage(data)) {
       const balance = this.parseBalance(data);
       if (balance) {
         this.emit('balance', { update: balance });
@@ -178,7 +181,7 @@ export class binance extends BaseClient {
   private _keepAlive = async () => {
     const ccxtInstance = new ccxt['binance']({ ...this.getCredentials() });
     await ccxtInstance.publicPutUserDataStream({ listenKey: this._listenKey });
-  }
+  };
 
   private _doAuth = async () => {
     await this._publicCcxtInstance.loadMarkets();
@@ -197,7 +200,7 @@ export class binance extends BaseClient {
     await this._doAuth();
   };
 
-  protected onOpen = async () => { };
+  protected onOpen = async () => {};
 
   public createOrder = async ({ order }: { order: OrderInput }) => {
     const ccxtInstance = new ccxt['binance']({ ...this.getCredentials() });
@@ -239,7 +242,7 @@ export class binance extends BaseClient {
       CANCELED: 'canceled',
       PENDING_CANCEL: 'open', // currently unused
       REJECTED: 'failed',
-      EXPIRED: 'canceled'
+      EXPIRED: 'canceled',
     };
 
     const id = this.getOrderId(message);
@@ -259,11 +262,13 @@ export class binance extends BaseClient {
       remaining: amount - filled,
       side: message.S === 'BUY' ? 'buy' : 'sell',
       status: statuses[message.X],
-      symbol: this._publicCcxtInstance.markets_by_id[message.s] ? this._publicCcxtInstance.markets_by_id[message.s].symbol : message.s,
+      symbol: this._publicCcxtInstance.markets_by_id[message.s]
+        ? this._publicCcxtInstance.markets_by_id[message.s].symbol
+        : message.s,
       trades: [],
       type: this.getOrderType(message.o),
       clientId: message.c ? message.c : undefined,
-      id
+      id,
     };
 
     const mergedOrder = R.mergeDeepWith(
@@ -282,7 +287,9 @@ export class binance extends BaseClient {
       info: message,
       timestamp: message.T,
       datetime: moment(message.T).toISOString(),
-      symbol: this._publicCcxtInstance.markets_by_id[message.s] ? this._publicCcxtInstance.markets_by_id[message.s].symbol : message.s,
+      symbol: this._publicCcxtInstance.markets_by_id[message.s]
+        ? this._publicCcxtInstance.markets_by_id[message.s].symbol
+        : message.s,
       id: message.t.toString(),
       order: message.c,
       type: this.getOrderType(message.o),
@@ -293,8 +300,8 @@ export class binance extends BaseClient {
       cost: price * amount,
       fee: {
         cost: parseFloat(message.n),
-        currency: this._publicCcxtInstance.safeCurrencyCode(message.N)
-      }
+        currency: this._publicCcxtInstance.safeCurrencyCode(message.N),
+      },
     };
   };
 
@@ -353,7 +360,7 @@ export class binance extends BaseClient {
       update[updateMessage.a] = {
         free,
         used,
-        total: free + used
+        total: free + used,
       };
     }
 
