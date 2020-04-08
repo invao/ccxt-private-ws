@@ -1,7 +1,8 @@
-import { OrderInput, ExchangeConstructorOptionalParameters } from '../exchange';
 import { BaseClient } from '../base-client';
+import { ExchangeConstructorOptionalParameters, OrderInput, WalletType } from '../exchange';
 declare type BitfinexConstructorParams = {
     credentials: {
+        walletType?: WalletType;
         apiKey: string;
         secret: string;
     };
@@ -9,16 +10,16 @@ declare type BitfinexConstructorParams = {
 export declare class bitfinex extends BaseClient {
     private _orderTypeMap;
     constructor(params: BitfinexConstructorParams & ExchangeConstructorOptionalParameters);
-    protected onMessage: (event: MessageEvent) => Promise<void>;
-    private _doAuth;
     createClientId: () => any;
+    protected onMessage: (event: MessageEvent) => Promise<void>;
+    cancelOrder: ({ id }: {
+        id: string;
+    }) => Promise<void>;
     protected onOpen: () => void;
     createOrder: ({ order }: {
         order: OrderInput;
     }) => Promise<void>;
-    cancelOrder: ({ id }: {
-        id: string;
-    }) => Promise<void>;
+    private _doAuth;
     private getOrderType;
     private parseOrder;
     private parseTrade;

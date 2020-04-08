@@ -63,10 +63,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-var exchange_1 = require("../exchange");
 var crypto_js_1 = __importDefault(require("crypto-js"));
 var moment_1 = __importDefault(require("moment"));
 var base_client_1 = require("../base-client");
+var exchange_1 = require("../exchange");
 var BitfinexOrderMessageCommands;
 (function (BitfinexOrderMessageCommands) {
     BitfinexOrderMessageCommands["NEW_ORDER"] = "on";
@@ -98,12 +98,27 @@ var isBitfinexWalletMessage = function (message) {
 var isBitfinexWalletUpdateMessage = function (message) {
     return Object.values(BitfinexWalletUpdateMessageCommands).includes(message[1]);
 };
+var balanceWalletType = function (wallet) {
+    switch (wallet) {
+        case 'margin':
+            return 'margin';
+        case null:
+        case undefined:
+        case 'exchange':
+            return 'spot';
+        default:
+            return undefined;
+    }
+};
 var bitfinex = /** @class */ (function (_super) {
     __extends(bitfinex, _super);
     function bitfinex(params) {
         var _this = _super.call(this, __assign(__assign({}, params), { url: 'wss://api.bitfinex.com/ws/2', name: 'bitfinex' })) || this;
         _this._orderTypeMap = {
-            limit: 'EXCHANGE LIMIT'
+            limit: 'EXCHANGE LIMIT',
+        };
+        _this.createClientId = function () {
+            return _this._random().toString();
         };
         _this.onMessage = function (event) { return __awaiter(_this, void 0, void 0, function () {
             var data, order, type, trade, order, _i, _a, message, balance, balance;
@@ -148,24 +163,19 @@ var bitfinex = /** @class */ (function (_super) {
                 }
             });
         }); };
-        _this._doAuth = function () {
-            var credentials = _this.getCredentials();
-            _this.assertConnected();
-            var authNonce = Date.now() * 1000;
-            var authPayload = 'AUTH' + authNonce;
-            var authSig = crypto_js_1.default.HmacSHA384(authPayload, credentials.secret).toString(crypto_js_1.default.enc.Hex);
-            var payload = {
-                apiKey: credentials.apiKey,
-                authSig: authSig,
-                authNonce: authNonce,
-                authPayload: authPayload,
-                event: 'auth',
-                filter: _this._subscribeFilter
-            };
-            _this.send(JSON.stringify(payload));
-        };
-        _this.createClientId = function () {
-            return _this._random().toString();
+        _this.cancelOrder = function (_a) {
+            var id = _a.id;
+            return __awaiter(_this, void 0, void 0, function () {
+                var orderData, payload;
+                return __generator(this, function (_b) {
+                    orderData = {
+                        id: id,
+                    };
+                    payload = [0, 'oc', null, orderData];
+                    this.send(JSON.stringify(payload));
+                    return [2 /*return*/];
+                });
+            });
         };
         _this.onOpen = function () {
             _this._doAuth();
@@ -184,7 +194,7 @@ var bitfinex = /** @class */ (function (_super) {
                         symbol: "t" + marketId,
                         amount: order.side === 'buy' ? order.amount.toString() : (-1 * order.amount).toString(),
                         price: order.price.toString(),
-                        flags: 0
+                        flags: 0,
                     };
                     payload = [0, 'on', null, orderData];
                     this.send(JSON.stringify(payload));
@@ -192,19 +202,21 @@ var bitfinex = /** @class */ (function (_super) {
                 });
             });
         };
-        _this.cancelOrder = function (_a) {
-            var id = _a.id;
-            return __awaiter(_this, void 0, void 0, function () {
-                var orderData, payload;
-                return __generator(this, function (_b) {
-                    orderData = {
-                        id: id
-                    };
-                    payload = [0, 'oc', null, orderData];
-                    this.send(JSON.stringify(payload));
-                    return [2 /*return*/];
-                });
-            });
+        _this._doAuth = function () {
+            var credentials = _this.getCredentials();
+            _this.assertConnected();
+            var authNonce = Date.now() * 1000;
+            var authPayload = 'AUTH' + authNonce;
+            var authSig = crypto_js_1.default.HmacSHA384(authPayload, credentials.secret).toString(crypto_js_1.default.enc.Hex);
+            var payload = {
+                apiKey: credentials.apiKey,
+                authSig: authSig,
+                authNonce: authNonce,
+                authPayload: authPayload,
+                event: 'auth',
+                filter: _this._subscribeFilter,
+            };
+            _this.send(JSON.stringify(payload));
         };
         _this.getOrderType = function (type) {
             switch (type) {
@@ -243,7 +255,7 @@ var bitfinex = /** @class */ (function (_super) {
                 remaining: Math.abs(data[6]),
                 side: data[7] > 0 ? 'buy' : 'sell',
                 status: status,
-                info: data
+                info: data,
             };
             return order;
         };
@@ -260,15 +272,17 @@ var bitfinex = /** @class */ (function (_super) {
                 takerOrMaker: data[8] === 1 ? 'maker' : 'taker',
                 fee: {
                     cost: Math.abs(data[9]),
-                    currency: data[10]
+                    currency: data[10],
                 },
                 info: data,
                 cost: price * amount,
                 datetime: moment_1.default(timestamp).toISOString(),
                 order: data[3],
                 side: data[4] > 0 ? 'buy' : 'sell',
-                symbol: _this._ccxtInstance.markets_by_id[symbol] ? _this._ccxtInstance.markets_by_id[symbol].symbol : symbol,
-                type: _this.getOrderType(data[6])
+                symbol: _this._ccxtInstance.markets_by_id[symbol]
+                    ? _this._ccxtInstance.markets_by_id[symbol].symbol
+                    : symbol,
+                type: _this.getOrderType(data[6]),
             };
             return trade;
         };
@@ -298,6 +312,9 @@ var bitfinex = /** @class */ (function (_super) {
         };
         _this.parseBalance = function (message) {
             var _a;
+            if (_this._walletType !== balanceWalletType(message[0])) {
+                return undefined;
+            }
             var currency = message[1];
             var free = message[4];
             if (free === null) {
@@ -308,14 +325,15 @@ var bitfinex = /** @class */ (function (_super) {
                 _a[currency] = {
                     free: free,
                     total: message[2],
-                    used: message[3]
+                    used: message[3],
                 },
                 _a.info = message,
                 _a;
         };
+        _this._walletType = _this._walletType || 'spot';
         _this.subscriptionKeyMapping = {
             orders: 'trading',
-            balance: 'wallet'
+            balance: 'wallet',
         };
         return _this;
     }

@@ -276,7 +276,7 @@ var BaseClient = /** @class */ (function (_super) {
                                         status: 'unknown',
                                         symbol: '',
                                         timestamp: 0,
-                                        type: undefined
+                                        type: undefined,
                                     };
                                 }
                                 var order = _this._orders[orderId];
@@ -322,7 +322,7 @@ var BaseClient = /** @class */ (function (_super) {
                                         if (!fee || !fee.currency) {
                                             fee = {
                                                 currency: trade.fee.currency,
-                                                cost: trade.fee.cost
+                                                cost: trade.fee.cost,
                                             };
                                         }
                                         else {
@@ -353,6 +353,7 @@ var BaseClient = /** @class */ (function (_super) {
         _this._orders = {};
         _this.lock = new async_lock_1.default({ domainReentrant: true });
         _this.lockDomain = domain_1.default.create();
+        _this._walletType = _this.getCredentials().walletType;
         return _this;
     }
     return BaseClient;

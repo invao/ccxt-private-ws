@@ -70,11 +70,11 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-var exchange_1 = require("../exchange");
 var ccxt_1 = __importDefault(require("ccxt"));
-var R = __importStar(require("ramda"));
 var moment_1 = __importDefault(require("moment"));
+var R = __importStar(require("ramda"));
 var base_client_1 = require("../base-client");
+var exchange_1 = require("../exchange");
 var BinanceOrderExecutionType;
 (function (BinanceOrderExecutionType) {
     BinanceOrderExecutionType["NEW"] = "NEW";
@@ -175,13 +175,13 @@ var binance = /** @class */ (function (_super) {
                         _a.sent();
                         return [3 /*break*/, 5];
                     case 4:
-                        if (isBinanceAccountInfoMessage(data)) {
+                        if (this._walletType === 'spot' && isBinanceAccountInfoMessage(data)) {
                             balance = this.parseBalance(data);
                             if (balance) {
                                 this.emit('fullBalance', { update: balance });
                             }
                         }
-                        else if (isBinanceAccountPositionMessage(data)) {
+                        else if (this._walletType === 'spot' && isBinanceAccountPositionMessage(data)) {
                             balance = this.parseBalance(data);
                             if (balance) {
                                 this.emit('balance', { update: balance });
@@ -279,7 +279,7 @@ var binance = /** @class */ (function (_super) {
                 CANCELED: 'canceled',
                 PENDING_CANCEL: 'open',
                 REJECTED: 'failed',
-                EXPIRED: 'canceled'
+                EXPIRED: 'canceled',
             };
             var id = _this.getOrderId(message);
             var originalOrder = _this.getCachedOrder(id);
@@ -297,11 +297,13 @@ var binance = /** @class */ (function (_super) {
                 remaining: amount - filled,
                 side: message.S === 'BUY' ? 'buy' : 'sell',
                 status: statuses[message.X],
-                symbol: _this._publicCcxtInstance.markets_by_id[message.s] ? _this._publicCcxtInstance.markets_by_id[message.s].symbol : message.s,
+                symbol: _this._publicCcxtInstance.markets_by_id[message.s]
+                    ? _this._publicCcxtInstance.markets_by_id[message.s].symbol
+                    : message.s,
                 trades: [],
                 type: _this.getOrderType(message.o),
                 clientId: message.c ? message.c : undefined,
-                id: id
+                id: id,
             };
             var mergedOrder = R.mergeDeepWith(function (left, right) { return (right === undefined ? left : right); }, originalOrder, order);
             return mergedOrder;
@@ -313,7 +315,9 @@ var binance = /** @class */ (function (_super) {
                 info: message,
                 timestamp: message.T,
                 datetime: moment_1.default(message.T).toISOString(),
-                symbol: _this._publicCcxtInstance.markets_by_id[message.s] ? _this._publicCcxtInstance.markets_by_id[message.s].symbol : message.s,
+                symbol: _this._publicCcxtInstance.markets_by_id[message.s]
+                    ? _this._publicCcxtInstance.markets_by_id[message.s].symbol
+                    : message.s,
                 id: message.t.toString(),
                 order: message.c,
                 type: _this.getOrderType(message.o),
@@ -324,8 +328,8 @@ var binance = /** @class */ (function (_super) {
                 cost: price * amount,
                 fee: {
                     cost: parseFloat(message.n),
-                    currency: _this._publicCcxtInstance.safeCurrencyCode(message.N)
-                }
+                    currency: _this._publicCcxtInstance.safeCurrencyCode(message.N),
+                },
             };
         };
         _this.getOrderEventType = function (message) {
@@ -384,13 +388,14 @@ var binance = /** @class */ (function (_super) {
                 update[updateMessage.a] = {
                     free: free,
                     used: used,
-                    total: free + used
+                    total: free + used,
                 };
             }
             return update;
         };
         _this.subscriptionKeyMapping = {};
         _this._publicCcxtInstance = new ccxt_1.default['binance']();
+        _this._walletType = _this._walletType || 'spot';
         return _this;
     }
     return binance;

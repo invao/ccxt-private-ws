@@ -68,6 +68,7 @@ export declare type OrderListener = (event: OrderEvent) => void;
 export declare type BalanceListener = (event: BalanceEvent) => void;
 export declare type ConnectListener = () => void;
 export declare type BalanceUpdate = ccxt.Balances;
+export declare type WalletType = 'spot' | 'margin' | 'future';
 export declare type ExchangeConstructorParameters = {
     name: ExchangeName;
     url: string;
@@ -77,6 +78,7 @@ export declare type ExchangeConstructorOptionalParameters = {
     debug?: boolean;
 };
 export declare type StaticExchangeCredentials = {
+    walletType?: WalletType;
     apiKey?: string;
     secret?: string;
     uid?: string;
