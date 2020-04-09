@@ -315,20 +315,20 @@ var bitfinex = /** @class */ (function (_super) {
             if (_this._walletType !== balanceWalletType(message[0])) {
                 return undefined;
             }
-            var currency = message[1];
+            var currency = _this._ccxtInstance['safeCurrencyCode'](message[1]);
             var free = message[4];
             if (free === null) {
                 _this.send(JSON.stringify([0, 'calc', null, [["wallet_funding_" + currency]]]));
                 return undefined;
             }
-            return _a = {},
+            return _this._ccxtInstance['parseBalance']((_a = {},
                 _a[currency] = {
                     free: free,
                     total: message[2],
                     used: message[3],
                 },
                 _a.info = message,
-                _a;
+                _a));
         };
         _this._walletType = _this._walletType || 'spot';
         _this.subscriptionKeyMapping = {

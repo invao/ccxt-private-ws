@@ -385,13 +385,14 @@ var binance = /** @class */ (function (_super) {
                 var updateMessage = _a[_i];
                 var free = parseFloat(updateMessage.f);
                 var used = parseFloat(updateMessage.l);
-                update[updateMessage.a] = {
+                var code = _this._ccxtInstance['safeCurrencyCode'](updateMessage.a);
+                update[code] = {
                     free: free,
                     used: used,
                     total: free + used,
                 };
             }
-            return update;
+            return _this._ccxtInstance['parseBalance'](update);
         };
         _this.subscriptionKeyMapping = {};
         _this._publicCcxtInstance = new ccxt_1.default['binance']();

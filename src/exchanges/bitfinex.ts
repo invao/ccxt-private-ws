@@ -168,7 +168,7 @@ export class bitfinex extends BaseClient {
   constructor(params: BitfinexConstructorParams & ExchangeConstructorOptionalParameters) {
     super({ ...params, url: 'wss://api.bitfinex.com/ws/2', name: 'bitfinex' });
     this._walletType = this._walletType || 'spot';
-    
+
     this.subscriptionKeyMapping = {
       orders: 'trading',
       balance: 'wallet',
@@ -363,20 +363,20 @@ export class bitfinex extends BaseClient {
       return undefined;
     }
 
-    const currency = message[1];
+    const currency = this._ccxtInstance['safeCurrencyCode'](message[1]);
     const free = message[4];
     if (free === null) {
       this.send(JSON.stringify([0, 'calc', null, [[`wallet_funding_${currency}`]]]));
       return undefined;
     }
 
-    return {
+    return this._ccxtInstance['parseBalance']({
       [currency]: {
         free,
         total: message[2],
         used: message[3],
       },
       info: message as any,
-    };
+    });
   };
 }

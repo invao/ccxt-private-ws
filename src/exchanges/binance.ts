@@ -357,13 +357,14 @@ export class binance extends BaseClient {
     for (const updateMessage of message.B) {
       const free = parseFloat(updateMessage.f);
       const used = parseFloat(updateMessage.l);
-      update[updateMessage.a] = {
+      const code = this._ccxtInstance['safeCurrencyCode'](updateMessage.a);
+      update[code] = {
         free,
         used,
         total: free + used,
       };
     }
 
-    return update;
+    return this._ccxtInstance['parseBalance'](update);
   };
 }
