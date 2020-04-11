@@ -182,7 +182,7 @@ export class bitfinex extends BaseClient {
   protected onMessage = async (event: MessageEvent) => {
     const data: BitfinexMessage = JSON.parse(event.data);
 
-    if (isBitfinexOrderMessage(data)) {
+    if (isBitfinexOrderMessage(data) && this._walletType === 'spot') {
       const order = this.parseOrder(data[2]);
       const type = this.parseOrderEventType(data[1]);
       this.saveCachedOrder(order);

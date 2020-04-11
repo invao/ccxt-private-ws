@@ -144,6 +144,9 @@ export class binance extends BaseClient {
 
   protected onMessage = async (event: MessageEvent) => {
     const data: BinanceMessage = JSON.parse(event.data);
+    if (this._walletType !== 'spot') {
+      return;
+    }
 
     if (isBinanceOrderMessage(data)) {
       const orderId = this.getOrderId(data);
@@ -165,12 +168,12 @@ export class binance extends BaseClient {
         await this.updateFeeFromTrades({ orderId });
         this.onOrder({ type, order: this.getCachedOrder(orderId) });
       });
-    } else if (this._walletType === 'spot' && isBinanceAccountInfoMessage(data)) {
+    } else if (isBinanceAccountInfoMessage(data)) {
       const balance = this.parseBalance(data);
       if (balance) {
         this.emit('fullBalance', { update: balance });
       }
-    } else if (this._walletType === 'spot' && isBinanceAccountPositionMessage(data)) {
+    } else if (isBinanceAccountPositionMessage(data)) {
       const balance = this.parseBalance(data);
       if (balance) {
         this.emit('balance', { update: balance });
