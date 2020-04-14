@@ -89,6 +89,7 @@ export type ExchangeConstructorOptionalParameters = {
 };
 
 export type StaticExchangeCredentials = {
+  exchange?: string;
   walletType?: WalletType;
   apiKey?: string;
   secret?: string;

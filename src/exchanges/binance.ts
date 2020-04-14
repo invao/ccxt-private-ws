@@ -144,12 +144,16 @@ export class binance extends BaseClient {
 
   protected onMessage = async (event: MessageEvent) => {
     const data: BinanceMessage = JSON.parse(event.data);
+    const creds =  this.getCredentials();
     if (this._walletType !== 'spot') {
+      console.log('onMessage: Ignoring message', creds.exchange, this._walletType);
       return;
     }
 
     if (isBinanceOrderMessage(data)) {
       const orderId = this.getOrderId(data);
+      console.log('onMessage:orderMessage', creds.exchange, this._walletType, orderId);
+      
       await this.lock.acquire(orderId, async () => {
         const type = this.getOrderEventType(data);
         const order = await this.parseOrder(data);
@@ -159,6 +163,8 @@ export class binance extends BaseClient {
       });
     } else if (isBinanceTradeMessage(data)) {
       const orderId = this.getOrderId(data);
+
+      console.log('onMessage:tradeMessage', creds.exchange, this._walletType, orderId);
       await this.lock.acquire(orderId, async () => {
         const type = this.getOrderEventType(data);
         const order = await this.parseOrder(data);

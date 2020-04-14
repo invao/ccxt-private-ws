@@ -111,14 +111,20 @@ var binance = /** @class */ (function (_super) {
     function binance(params) {
         var _this = _super.call(this, __assign(__assign({}, params), { url: '', name: 'binance' })) || this;
         _this.onMessage = function (event) { return __awaiter(_this, void 0, void 0, function () {
-            var data, orderId_1, orderId_2, balance, balance;
+            var data, creds, orderId_1, orderId_2, balance, balance;
             var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
                         data = JSON.parse(event.data);
+                        creds = this.getCredentials();
+                        if (this._walletType !== 'spot') {
+                            console.log('onMessage: Ignoring message', creds.exchange, this._walletType);
+                            return [2 /*return*/];
+                        }
                         if (!isBinanceOrderMessage(data)) return [3 /*break*/, 2];
                         orderId_1 = this.getOrderId(data);
+                        console.log('onMessage:orderMessage', creds.exchange, this._walletType, orderId_1);
                         return [4 /*yield*/, this.lock.acquire(orderId_1, function () { return __awaiter(_this, void 0, void 0, function () {
                                 var type, order;
                                 return __generator(this, function (_a) {
@@ -145,6 +151,7 @@ var binance = /** @class */ (function (_super) {
                     case 2:
                         if (!isBinanceTradeMessage(data)) return [3 /*break*/, 4];
                         orderId_2 = this.getOrderId(data);
+                        console.log('onMessage:tradeMessage', creds.exchange, this._walletType, orderId_2);
                         return [4 /*yield*/, this.lock.acquire(orderId_2, function () { return __awaiter(_this, void 0, void 0, function () {
                                 var type, order, trade;
                                 return __generator(this, function (_a) {
@@ -175,13 +182,13 @@ var binance = /** @class */ (function (_super) {
                         _a.sent();
                         return [3 /*break*/, 5];
                     case 4:
-                        if (this._walletType === 'spot' && isBinanceAccountInfoMessage(data)) {
+                        if (isBinanceAccountInfoMessage(data)) {
                             balance = this.parseBalance(data);
                             if (balance) {
                                 this.emit('fullBalance', { update: balance });
                             }
                         }
-                        else if (this._walletType === 'spot' && isBinanceAccountPositionMessage(data)) {
+                        else if (isBinanceAccountPositionMessage(data)) {
                             balance = this.parseBalance(data);
                             if (balance) {
                                 this.emit('balance', { update: balance });
