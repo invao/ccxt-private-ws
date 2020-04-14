@@ -117,6 +117,9 @@ var binance = /** @class */ (function (_super) {
                 switch (_a.label) {
                     case 0:
                         data = JSON.parse(event.data);
+                        if (this._walletType !== 'spot') {
+                            return [2 /*return*/];
+                        }
                         if (!isBinanceOrderMessage(data)) return [3 /*break*/, 2];
                         orderId_1 = this.getOrderId(data);
                         return [4 /*yield*/, this.lock.acquire(orderId_1, function () { return __awaiter(_this, void 0, void 0, function () {
@@ -175,13 +178,13 @@ var binance = /** @class */ (function (_super) {
                         _a.sent();
                         return [3 /*break*/, 5];
                     case 4:
-                        if (this._walletType === 'spot' && isBinanceAccountInfoMessage(data)) {
+                        if (isBinanceAccountInfoMessage(data)) {
                             balance = this.parseBalance(data);
                             if (balance) {
                                 this.emit('fullBalance', { update: balance });
                             }
                         }
-                        else if (this._walletType === 'spot' && isBinanceAccountPositionMessage(data)) {
+                        else if (isBinanceAccountPositionMessage(data)) {
                             balance = this.parseBalance(data);
                             if (balance) {
                                 this.emit('balance', { update: balance });
