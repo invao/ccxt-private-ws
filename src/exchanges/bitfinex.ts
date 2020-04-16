@@ -276,11 +276,12 @@ export class bitfinex extends BaseClient {
 
   private parseOrder = (data: BitfinexOrderMessageContent) => {
     const status = this.parseOrderStatus(data[13]);
-    let market: { symbol: string } = this._ccxtInstance.market(
-      data[3].substr(1, 3) + '/' + data[3].substr(4, 3)
-    );
+    const base = this._ccxtInstance['safeCurrencyCode'](data[3].substr(1, 3));
+    const quote = this._ccxtInstance['safeCurrencyCode'](data[3].substr(4, 3));
+    const symbol = base + '/' + quote;
+    let market: { symbol: string } = this._ccxtInstance.market(symbol);
     if (!market) {
-      market = { symbol: data[3].substr(1, 3) + '/' + data[3].substr(4, 3) };
+      market = { symbol };
     }
 
     const order: Order = {

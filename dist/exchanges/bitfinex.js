@@ -237,9 +237,12 @@ var bitfinex = /** @class */ (function (_super) {
         };
         _this.parseOrder = function (data) {
             var status = _this.parseOrderStatus(data[13]);
-            var market = _this._ccxtInstance.market(data[3].substr(1, 3) + '/' + data[3].substr(4, 3));
+            var base = _this._ccxtInstance['safeCurrencyCode'](data[3].substr(1, 3));
+            var quote = _this._ccxtInstance['safeCurrencyCode'](data[3].substr(4, 3));
+            var symbol = base + '/' + quote;
+            var market = _this._ccxtInstance.market(symbol);
             if (!market) {
-                market = { symbol: data[3].substr(1, 3) + '/' + data[3].substr(4, 3) };
+                market = { symbol: symbol };
             }
             var order = {
                 id: data[0].toString(),
