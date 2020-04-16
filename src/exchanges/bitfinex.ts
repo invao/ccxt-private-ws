@@ -1,4 +1,5 @@
 import crypto from 'crypto-js';
+import Decimal from 'decimal.js';
 import moment from 'moment';
 
 import { BaseClient } from '../base-client';
@@ -365,18 +366,18 @@ export class bitfinex extends BaseClient {
     }
 
     const currency = this._ccxtInstance['safeCurrencyCode'](message[1]);
-    const free = message[4];
-    if (free === null) {
+    if (message[4] === null) {
       this.send(JSON.stringify([0, 'calc', null, [[`wallet_funding_${currency}`]]]));
       return undefined;
     }
+    
+    const free = new Decimal(message[4]);
+    const total = new Decimal(message[2]);
+    const used =
+      !total.eq(free) && message[3] === 0 ? new Decimal(total).minus(free) : new Decimal(message[3]);
 
     return this._ccxtInstance['parseBalance']({
-      [currency]: {
-        free,
-        total: message[2],
-        used: message[3],
-      },
+      [currency]: { free: free.toNumber(), total: total.toNumber(), used: used.toNumber() },
       info: message as any,
     });
   };

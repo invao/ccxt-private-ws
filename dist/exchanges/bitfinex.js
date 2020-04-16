@@ -64,6 +64,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 var crypto_js_1 = __importDefault(require("crypto-js"));
+var decimal_js_1 = __importDefault(require("decimal.js"));
 var moment_1 = __importDefault(require("moment"));
 var base_client_1 = require("../base-client");
 var exchange_1 = require("../exchange");
@@ -319,17 +320,15 @@ var bitfinex = /** @class */ (function (_super) {
                 return undefined;
             }
             var currency = _this._ccxtInstance['safeCurrencyCode'](message[1]);
-            var free = message[4];
-            if (free === null) {
+            if (message[4] === null) {
                 _this.send(JSON.stringify([0, 'calc', null, [["wallet_funding_" + currency]]]));
                 return undefined;
             }
+            var free = new decimal_js_1.default(message[4]);
+            var total = new decimal_js_1.default(message[2]);
+            var used = !total.eq(free) && message[3] === 0 ? new decimal_js_1.default(total).minus(free) : new decimal_js_1.default(message[3]);
             return _this._ccxtInstance['parseBalance']((_a = {},
-                _a[currency] = {
-                    free: free,
-                    total: message[2],
-                    used: message[3],
-                },
+                _a[currency] = { free: free.toNumber(), total: total.toNumber(), used: used.toNumber() },
                 _a.info = message,
                 _a));
         };
