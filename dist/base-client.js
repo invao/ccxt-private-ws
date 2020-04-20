@@ -89,7 +89,7 @@ var BaseClient = /** @class */ (function (_super) {
     __extends(BaseClient, _super);
     function BaseClient(params) {
         var _this = _super.call(this) || this;
-        _this._reconnectIntervalEnabled = true;
+        _this._reconnectIntervalEnabled = false;
         _this._reconnectIntervalMs = 1000 * 60 * 60; // 1 hour by default
         _this.connect = function () { return __awaiter(_this, void 0, void 0, function () {
             var _this = this;

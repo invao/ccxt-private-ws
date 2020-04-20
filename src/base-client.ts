@@ -49,7 +49,7 @@ export abstract class BaseClient extends EventEmitter implements Exchange {
   private _?: OrderListener;
   private _resolveConnect?: Function;
   private _orders: Record<string, Order>;
-  private _reconnectIntervalEnabled: boolean = true;
+  private _reconnectIntervalEnabled: boolean = false;
   private _reconnectIntervalMs: number = 1000 * 60 * 60; // 1 hour by default
   private _reconnectInterval?: any;
 
