@@ -76,6 +76,8 @@ export declare type ExchangeConstructorParameters = {
 };
 export declare type ExchangeConstructorOptionalParameters = {
     debug?: boolean;
+    reconnectIntervalEnabled?: boolean;
+    reconnectIntervalMs?: number;
 };
 export declare type StaticExchangeCredentials = {
     walletType?: WalletType;

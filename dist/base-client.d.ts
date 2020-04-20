@@ -7,6 +7,16 @@ import { EventEmitter } from 'events';
 import { Exchange, ExchangeConstructorOptionalParameters, ExchangeConstructorParameters, ExchangeCredentials, Order, OrderEvent, OrderInput, Trade, WalletType } from './exchange';
 import { ExchangeName } from './';
 export declare abstract class BaseClient extends EventEmitter implements Exchange {
+    createOrder?({ order }: {
+        order: OrderInput;
+    }): Promise<void>;
+    cancelOrder?({ id }: {
+        id: string;
+    }): Promise<void>;
+    createClientId?(): string;
+    protected abstract onMessage(event: MessageEvent): void;
+    protected onOpen?(): void;
+    protected onClose?(): void;
     protected _ws?: ReconnectingWebSocket;
     protected _credentials: ExchangeCredentials;
     protected _random: Function;
@@ -24,29 +34,23 @@ export declare abstract class BaseClient extends EventEmitter implements Exchang
     private _?;
     private _resolveConnect?;
     private _orders;
+    private _reconnectIntervalEnabled;
+    private _reconnectIntervalMs;
+    private _reconnectInterval?;
     constructor(params: ExchangeConstructorParameters & ExchangeConstructorOptionalParameters);
-    createOrder?({ order }: {
-        order: OrderInput;
-    }): Promise<void>;
-    cancelOrder?({ id }: {
-        id: string;
-    }): Promise<void>;
-    createClientId?(): string;
-    protected send: (message: string) => void;
-    protected getCredentials: () => import("./exchange").StaticExchangeCredentials;
     connect: () => Promise<void>;
+    setReconnectInterval: (setup?: {
+        enabled?: boolean | undefined;
+        intervalMs?: number | undefined;
+    } | undefined) => void;
+    reconnect: (code?: number | undefined, reason?: string | undefined) => Promise<void>;
     disconnect: () => Promise<void>;
     getName: () => ExchangeName;
-    protected abstract onMessage(event: MessageEvent): void;
-    protected onOpen?(): void;
-    protected onClose?(): void;
-    private _onMessage;
-    private _onOpen;
-    private _onClose;
-    private _onError;
-    protected assertConnected: () => Promise<void>;
     subscribeOrders: () => void;
     subscribeBalances: () => void;
+    protected send: (message: string) => void;
+    protected getCredentials: () => import("./exchange").StaticExchangeCredentials;
+    protected assertConnected: () => Promise<void>;
     protected onOrder: (event: OrderEvent) => void;
     protected debug: (message: string) => void;
     protected getCachedOrder: (id: string | number) => Order;
@@ -59,4 +63,8 @@ export declare abstract class BaseClient extends EventEmitter implements Exchang
     protected updateFeeFromTrades: ({ orderId }: {
         orderId: string | number;
     }) => Promise<void>;
+    private _onMessage;
+    private _onOpen;
+    private _onClose;
+    private _onError;
 }

@@ -86,6 +86,8 @@ export type ExchangeConstructorParameters = {
 
 export type ExchangeConstructorOptionalParameters = {
   debug?: boolean;
+  reconnectIntervalEnabled?: boolean;
+  reconnectIntervalMs?: number;
 };
 
 export type StaticExchangeCredentials = {

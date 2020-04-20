@@ -121,6 +121,42 @@ var bitfinex = /** @class */ (function (_super) {
         _this.createClientId = function () {
             return _this._random().toString();
         };
+        _this.createOrder = function (_a) {
+            var order = _a.order;
+            return __awaiter(_this, void 0, void 0, function () {
+                var clientId, marketId, orderData, payload;
+                return __generator(this, function (_b) {
+                    clientId = order.clientId ? order.clientId : this.createClientId();
+                    marketId = this._ccxtInstance.market(order.symbol).id;
+                    orderData = {
+                        gid: 1,
+                        cid: parseInt(clientId),
+                        type: this._orderTypeMap[order.type],
+                        symbol: "t" + marketId,
+                        amount: order.side === 'buy' ? order.amount.toString() : (-1 * order.amount).toString(),
+                        price: order.price.toString(),
+                        flags: 0,
+                    };
+                    payload = [0, 'on', null, orderData];
+                    this.send(JSON.stringify(payload));
+                    return [2 /*return*/];
+                });
+            });
+        };
+        _this.cancelOrder = function (_a) {
+            var id = _a.id;
+            return __awaiter(_this, void 0, void 0, function () {
+                var orderData, payload;
+                return __generator(this, function (_b) {
+                    orderData = {
+                        id: id,
+                    };
+                    payload = [0, 'oc', null, orderData];
+                    this.send(JSON.stringify(payload));
+                    return [2 /*return*/];
+                });
+            });
+        };
         _this.onMessage = function (event) { return __awaiter(_this, void 0, void 0, function () {
             var data, order, type, trade, order, _i, _a, message, balance, balance;
             return __generator(this, function (_b) {
@@ -164,44 +200,8 @@ var bitfinex = /** @class */ (function (_super) {
                 }
             });
         }); };
-        _this.cancelOrder = function (_a) {
-            var id = _a.id;
-            return __awaiter(_this, void 0, void 0, function () {
-                var orderData, payload;
-                return __generator(this, function (_b) {
-                    orderData = {
-                        id: id,
-                    };
-                    payload = [0, 'oc', null, orderData];
-                    this.send(JSON.stringify(payload));
-                    return [2 /*return*/];
-                });
-            });
-        };
         _this.onOpen = function () {
             _this._doAuth();
-        };
-        _this.createOrder = function (_a) {
-            var order = _a.order;
-            return __awaiter(_this, void 0, void 0, function () {
-                var clientId, marketId, orderData, payload;
-                return __generator(this, function (_b) {
-                    clientId = order.clientId ? order.clientId : this.createClientId();
-                    marketId = this._ccxtInstance.market(order.symbol).id;
-                    orderData = {
-                        gid: 1,
-                        cid: parseInt(clientId),
-                        type: this._orderTypeMap[order.type],
-                        symbol: "t" + marketId,
-                        amount: order.side === 'buy' ? order.amount.toString() : (-1 * order.amount).toString(),
-                        price: order.price.toString(),
-                        flags: 0,
-                    };
-                    payload = [0, 'on', null, orderData];
-                    this.send(JSON.stringify(payload));
-                    return [2 /*return*/];
-                });
-            });
         };
         _this._doAuth = function () {
             var credentials = _this.getCredentials();

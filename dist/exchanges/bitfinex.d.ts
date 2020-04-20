@@ -11,14 +11,14 @@ export declare class bitfinex extends BaseClient {
     private _orderTypeMap;
     constructor(params: BitfinexConstructorParams & ExchangeConstructorOptionalParameters);
     createClientId: () => any;
-    protected onMessage: (event: MessageEvent) => Promise<void>;
-    cancelOrder: ({ id }: {
-        id: string;
-    }) => Promise<void>;
-    protected onOpen: () => void;
     createOrder: ({ order }: {
         order: OrderInput;
     }) => Promise<void>;
+    cancelOrder: ({ id }: {
+        id: string;
+    }) => Promise<void>;
+    protected onMessage: (event: MessageEvent) => Promise<void>;
+    protected onOpen: () => void;
     private _doAuth;
     private getOrderType;
     private parseOrder;

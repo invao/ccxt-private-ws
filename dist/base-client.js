@@ -89,23 +89,8 @@ var BaseClient = /** @class */ (function (_super) {
     __extends(BaseClient, _super);
     function BaseClient(params) {
         var _this = _super.call(this) || this;
-        _this.send = function (message) {
-            console.log("Sending message to " + _this.getName() + ": " + message);
-            if (_this._ws) {
-                _this._ws.send(message);
-            }
-            else {
-                throw new Error('Websocket not connected.');
-            }
-        };
-        _this.getCredentials = function () {
-            if (typeof _this._credentials === 'function') {
-                return _this._credentials();
-            }
-            else {
-                return _this._credentials;
-            }
-        };
+        _this._reconnectIntervalEnabled = true;
+        _this._reconnectIntervalMs = 1000 * 60 * 60; // 1 hour by default
         _this.connect = function () { return __awaiter(_this, void 0, void 0, function () {
             var _this = this;
             return __generator(this, function (_a) {
@@ -136,6 +121,7 @@ var BaseClient = /** @class */ (function (_super) {
                             _this._ws.addEventListener('close', _this._onClose);
                             _this._ws.addEventListener('error', _this._onError);
                             _this._ws.reconnect();
+                            _this.setReconnectInterval();
                         });
                         this._ws.addEventListener('message', this._onMessage);
                         return [4 /*yield*/, this.assertConnected()];
@@ -145,9 +131,40 @@ var BaseClient = /** @class */ (function (_super) {
                 }
             });
         }); };
+        _this.setReconnectInterval = function (setup) {
+            if (_this._reconnectInterval) {
+                clearInterval(_this._reconnectInterval);
+                _this._reconnectInterval = undefined;
+            }
+            if (setup && setup.intervalMs !== undefined) {
+                _this._reconnectIntervalMs = setup.intervalMs;
+            }
+            if (setup && setup.enabled !== undefined) {
+                _this._reconnectIntervalEnabled = setup.enabled;
+            }
+            if (_this._reconnectIntervalEnabled) {
+                _this._reconnectInterval = setInterval(_this.reconnect, _this._reconnectIntervalMs);
+            }
+        };
+        _this.reconnect = function (code, reason) { return __awaiter(_this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                if (this._ws) {
+                    this.debug("Reconnecting to " + this._name + ".");
+                    this._ws.reconnect(code, reason);
+                }
+                else {
+                    this.debug("Cannot reconnect to " + this._name + ".");
+                }
+                return [2 /*return*/];
+            });
+        }); };
         _this.disconnect = function () { return __awaiter(_this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 this._connected = undefined;
+                if (this._reconnectInterval) {
+                    clearInterval(this._reconnectInterval);
+                    this._reconnectInterval = undefined;
+                }
                 if (!this._ws) {
                     throw new Error('Websocket not connected.');
                 }
@@ -162,47 +179,6 @@ var BaseClient = /** @class */ (function (_super) {
         _this.getName = function () {
             return _this._name;
         };
-        _this._onMessage = function (event) {
-            _this.debug("Event on " + _this.getName() + ": " + event.data);
-            domain_1.default.create().run(function () {
-                _this.onMessage(event);
-            });
-        };
-        _this._onOpen = function () {
-            if (_this._resolveConnect) {
-                _this._resolveConnect(true);
-            }
-            console.log("Connection to " + _this._name + " established at " + _this._url + ".");
-            if (_this.onOpen) {
-                _this.onOpen();
-            }
-        };
-        _this._onClose = function () {
-            if (_this._resolveConnect) {
-                _this._resolveConnect(false);
-            }
-            console.log("Connection to " + _this._name + " closed.");
-            if (_this.onClose) {
-                _this.onClose();
-            }
-        };
-        _this._onError = function () {
-            if (_this._resolveConnect) {
-                _this._resolveConnect(false);
-            }
-        };
-        _this.assertConnected = function () { return __awaiter(_this, void 0, void 0, function () {
-            return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0: return [4 /*yield*/, this._connected];
-                    case 1:
-                        if (!(_a.sent())) {
-                            throw new Error(this._name + " not connected.");
-                        }
-                        return [2 /*return*/];
-                }
-            });
-        }); };
         _this.subscribeOrders = function () {
             if (!_this.subscriptionKeyMapping['orders']) {
                 return;
@@ -227,6 +203,35 @@ var BaseClient = /** @class */ (function (_super) {
                 _this._ws.reconnect();
             }
         };
+        _this.send = function (message) {
+            _this.debug("Sending message to " + _this.getName() + ": " + message);
+            if (_this._ws) {
+                _this._ws.send(message);
+            }
+            else {
+                throw new Error('Websocket not connected.');
+            }
+        };
+        _this.getCredentials = function () {
+            if (typeof _this._credentials === 'function') {
+                return _this._credentials();
+            }
+            else {
+                return _this._credentials;
+            }
+        };
+        _this.assertConnected = function () { return __awaiter(_this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, this._connected];
+                    case 1:
+                        if (!(_a.sent())) {
+                            throw new Error(this._name + " not connected.");
+                        }
+                        return [2 /*return*/];
+                }
+            });
+        }); };
         _this.onOrder = function (event) {
             _this.emit('order', event);
         };
@@ -342,6 +347,35 @@ var BaseClient = /** @class */ (function (_super) {
                 });
             });
         };
+        _this._onMessage = function (event) {
+            _this.debug("Event on " + _this.getName() + ": " + event.data);
+            domain_1.default.create().run(function () {
+                _this.onMessage(event);
+            });
+        };
+        _this._onOpen = function () {
+            if (_this._resolveConnect) {
+                _this._resolveConnect(true);
+            }
+            _this.debug("Connection to " + _this._name + " established at " + _this._url + ".");
+            if (_this.onOpen) {
+                _this.onOpen();
+            }
+        };
+        _this._onClose = function () {
+            if (_this._resolveConnect) {
+                _this._resolveConnect(false);
+            }
+            _this.debug("Connection to " + _this._name + " closed.");
+            if (_this.onClose) {
+                _this.onClose();
+            }
+        };
+        _this._onError = function () {
+            if (_this._resolveConnect) {
+                _this._resolveConnect(false);
+            }
+        };
         _this._name = params.name;
         _this._url = params.url;
         _this._credentials = params.credentials;
@@ -354,6 +388,12 @@ var BaseClient = /** @class */ (function (_super) {
         _this.lock = new async_lock_1.default({ domainReentrant: true });
         _this.lockDomain = domain_1.default.create();
         _this._walletType = _this.getCredentials().walletType;
+        if (params.reconnectIntervalEnabled !== undefined) {
+            _this._reconnectIntervalEnabled = params.reconnectIntervalEnabled;
+        }
+        if (params.reconnectIntervalMs !== undefined) {
+            _this._reconnectIntervalMs = params.reconnectIntervalMs;
+        }
         return _this;
     }
     return BaseClient;
