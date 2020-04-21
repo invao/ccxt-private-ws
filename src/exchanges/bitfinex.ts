@@ -180,6 +180,30 @@ export class bitfinex extends BaseClient {
     return this._random().toString();
   };
 
+  public createOrder = async ({ order }: { order: OrderInput }) => {
+    const clientId = order.clientId ? order.clientId : this.createClientId();
+    const marketId = this._ccxtInstance.market(order.symbol).id;
+    const orderData = {
+      gid: 1,
+      cid: parseInt(clientId),
+      type: this._orderTypeMap[order.type],
+      symbol: `t${marketId}`,
+      amount: order.side === 'buy' ? order.amount.toString() : (-1 * order.amount).toString(),
+      price: order.price.toString(),
+      flags: 0,
+    };
+    const payload = [0, 'on', null, orderData];
+    this.send(JSON.stringify(payload));
+  };
+
+  public cancelOrder = async ({ id }: { id: string }) => {
+    const orderData = {
+      id,
+    };
+    const payload = [0, 'oc', null, orderData];
+    this.send(JSON.stringify(payload));
+  };
+  
   protected onMessage = async (event: MessageEvent) => {
     const data: BitfinexMessage = JSON.parse(event.data);
 
@@ -209,32 +233,8 @@ export class bitfinex extends BaseClient {
     }
   };
 
-  public cancelOrder = async ({ id }: { id: string }) => {
-    const orderData = {
-      id,
-    };
-    const payload = [0, 'oc', null, orderData];
-    this.send(JSON.stringify(payload));
-  };
-
   protected onOpen = () => {
     this._doAuth();
-  };
-
-  public createOrder = async ({ order }: { order: OrderInput }) => {
-    const clientId = order.clientId ? order.clientId : this.createClientId();
-    const marketId = this._ccxtInstance.market(order.symbol).id;
-    const orderData = {
-      gid: 1,
-      cid: parseInt(clientId),
-      type: this._orderTypeMap[order.type],
-      symbol: `t${marketId}`,
-      amount: order.side === 'buy' ? order.amount.toString() : (-1 * order.amount).toString(),
-      price: order.price.toString(),
-      flags: 0,
-    };
-    const payload = [0, 'on', null, orderData];
-    this.send(JSON.stringify(payload));
   };
 
   private _doAuth = () => {

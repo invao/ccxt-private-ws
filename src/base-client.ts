@@ -22,6 +22,14 @@ import {
 import { ExchangeName } from './';
 
 export abstract class BaseClient extends EventEmitter implements Exchange {
+  // Class interface to be implemented by specific exchanges
+  public async createOrder?({ order }: { order: OrderInput }): Promise<void>;
+  public async cancelOrder?({ id }: { id: string }): Promise<void>;
+  public createClientId?(): string;
+
+  protected abstract onMessage(event: MessageEvent): void;
+  protected onOpen?(): void;
+  protected onClose?(): void;
 
   protected _ws?: ReconnectingWebSocket;
   protected _credentials: ExchangeCredentials;
@@ -41,6 +49,9 @@ export abstract class BaseClient extends EventEmitter implements Exchange {
   private _?: OrderListener;
   private _resolveConnect?: Function;
   private _orders: Record<string, Order>;
+  private _reconnectIntervalEnabled: boolean = false;
+  private _reconnectIntervalMs: number = 1000 * 60 * 60; // 1 hour by default
+  private _reconnectInterval?: any;
 
   constructor(params: ExchangeConstructorParameters & ExchangeConstructorOptionalParameters) {
     super();
@@ -56,29 +67,14 @@ export abstract class BaseClient extends EventEmitter implements Exchange {
     this.lock = new AsyncLock({ domainReentrant: true });
     this.lockDomain = domain.create();
     this._walletType = this.getCredentials().walletType;
+
+    if (params.reconnectIntervalEnabled !== undefined) {
+      this._reconnectIntervalEnabled = params.reconnectIntervalEnabled;
+    }
+    if (params.reconnectIntervalMs !== undefined) {
+      this._reconnectIntervalMs = params.reconnectIntervalMs;
+    }
   }
-
-  // Class interface to be implemented by specific exchanges
-  public async createOrder?({ order }: { order: OrderInput }): Promise<void>;
-  public async cancelOrder?({ id }: { id: string }): Promise<void>;
-  public createClientId?(): string;
-
-  protected send = (message: string) => {
-    console.log(`Sending message to ${this.getName()}: ${message}`);
-    if (this._ws) {
-      this._ws.send(message);
-    } else {
-      throw new Error('Websocket not connected.');
-    }
-  };
-
-  protected getCredentials = () => {
-    if (typeof this._credentials === 'function') {
-      return this._credentials();
-    } else {
-      return this._credentials;
-    }
-  };
 
   public connect = async () => {
     if (this.preConnect) {
@@ -104,17 +100,54 @@ export abstract class BaseClient extends EventEmitter implements Exchange {
       this._ws.addEventListener('close', this._onClose);
       this._ws.addEventListener('error', this._onError);
       this._ws.reconnect();
+
+      this.setReconnectInterval();
     });
     this._ws.addEventListener('message', this._onMessage);
 
     await this.assertConnected();
   };
 
+  public setReconnectInterval = (setup?: { enabled?: boolean; intervalMs?: number }) => {
+    if (this._reconnectInterval) {
+      clearInterval(this._reconnectInterval);
+      this._reconnectInterval = undefined;
+    }
+
+    if (setup && setup.intervalMs !== undefined) {
+      this._reconnectIntervalMs = setup.intervalMs;
+    }
+
+    if (setup && setup.enabled !== undefined) {
+      this._reconnectIntervalEnabled = setup.enabled;
+    }
+
+    if (this._reconnectIntervalEnabled) {
+      this._reconnectInterval = setInterval(this.reconnect, this._reconnectIntervalMs);
+    }
+  };
+
+  public reconnect = async (code?: number, reason?: string) => {
+    if (this._ws) {
+      this.debug(`Reconnecting to ${this._name}.`);
+      this._ws.reconnect(code, reason);
+    } else {
+      this.debug(`Cannot reconnect to ${this._name}.`);
+    }
+  };
+
   public disconnect = async () => {
     this._connected = undefined;
+
+    if (this._reconnectInterval) {
+      clearInterval(this._reconnectInterval);
+      this._reconnectInterval = undefined;
+    }
+
     if (!this._ws) {
       throw new Error('Websocket not connected.');
     }
+
     this._ws.close();
     this._ws.removeEventListener('message', this._onMessage);
     this._ws.removeEventListener('open', this._onOpen);
@@ -124,50 +157,6 @@ export abstract class BaseClient extends EventEmitter implements Exchange {
 
   public getName = () => {
     return this._name;
-  };
-
-  protected abstract onMessage(event: MessageEvent): void;
-  protected onOpen?(): void;
-  protected onClose?(): void;
-
-  private _onMessage = (event: MessageEvent) => {
-    this.debug(`Event on ${this.getName()}: ${event.data}`);
-    domain.create().run(() => {
-      this.onMessage(event);
-    });
-  };
-
-  private _onOpen = () => {
-    if (this._resolveConnect) {
-      this._resolveConnect(true);
-    }
-
-    console.log(`Connection to ${this._name} established at ${this._url}.`);
-    if (this.onOpen) {
-      this.onOpen();
-    }
-  };
-
-  private _onClose = () => {
-    if (this._resolveConnect) {
-      this._resolveConnect(false);
-    }
-    console.log(`Connection to ${this._name} closed.`);
-    if (this.onClose) {
-      this.onClose();
-    }
-  };
-
-  private _onError = () => {
-    if (this._resolveConnect) {
-      this._resolveConnect(false);
-    }
-  };
-
-  protected assertConnected = async () => {
-    if (!(await this._connected)) {
-      throw new Error(`${this._name} not connected.`);
-    }
   };
 
   public subscribeOrders = () => {
@@ -200,6 +189,29 @@ export abstract class BaseClient extends EventEmitter implements Exchange {
 
     if (this._ws) {
       this._ws.reconnect();
+    }
+  };
+
+  protected send = (message: string) => {
+    this.debug(`Sending message to ${this.getName()}: ${message}`);
+    if (this._ws) {
+      this._ws.send(message);
+    } else {
+      throw new Error('Websocket not connected.');
+    }
+  };
+
+  protected getCredentials = () => {
+    if (typeof this._credentials === 'function') {
+      return this._credentials();
+    } else {
+      return this._credentials;
+    }
+  };
+
+  protected assertConnected = async () => {
+    if (!(await this._connected)) {
+      throw new Error(`${this._name} not connected.`);
     }
   };
 
@@ -296,5 +308,40 @@ export abstract class BaseClient extends EventEmitter implements Exchange {
       }
     }
     await this.saveCachedOrder({ ...order, fee });
+  };
+
+  private _onMessage = (event: MessageEvent) => {
+    this.debug(`Event on ${this.getName()}: ${event.data}`);
+    domain.create().run(() => {
+      this.onMessage(event);
+    });
+  };
+
+  private _onOpen = () => {
+    if (this._resolveConnect) {
+      this._resolveConnect(true);
+    }
+
+    this.debug(`Connection to ${this._name} established at ${this._url}.`);
+    if (this.onOpen) {
+      this.onOpen();
+    }
+  };
+
+  private _onClose = () => {
+    if (this._resolveConnect) {
+      this._resolveConnect(false);
+    }
+
+    this.debug(`Connection to ${this._name} closed.`);
+    if (this.onClose) {
+      this.onClose();
+    }
+  };
+
+  private _onError = () => {
+    if (this._resolveConnect) {
+      this._resolveConnect(false);
+    }
   };
 }
