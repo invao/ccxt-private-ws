@@ -204,13 +204,13 @@ export class bitfinex extends BaseClient {
     if (isBitfinexOrderMessage(data) && this._walletType === 'spot') {
       const order = this.parseOrder(data[2]);
       const type = this.parseOrderEventType(data[1]);
-      this.saveCachedOrder(order);
-      this.updateFeeFromTrades({ orderId: order.id });
+      await this.saveCachedOrder(order);
+      await this.updateFeeFromTrades({ orderId: order.id });
       this.onOrder({ type, order: this.getCachedOrder(order.id) });
     } else if (isBitfinexTradeMessage(data) && this._walletType === 'spot') {
       const trade = this.parseTrade(data[2]);
       const order = await this.saveCachedTrade({ trade, orderId: data[2][3] });
-      this.updateFeeFromTrades({ orderId: order.id });
+      await this.updateFeeFromTrades({ orderId: order.id });
       this.onOrder({ type: OrderEventType.ORDER_UPDATED, order: this.getCachedOrder(order.id) });
     } else if (isBitfinexWalletMessage(data)) {
       for (const message of data[2]) {
