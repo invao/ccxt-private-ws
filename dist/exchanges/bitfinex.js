@@ -340,9 +340,14 @@ var bitfinex = /** @class */ (function (_super) {
                 _a));
         };
         _this._walletType = _this._walletType || 'spot';
+        var balanceTypes = {
+            spot: 'wallet-exchange',
+            margin: 'wallet-margin',
+            future: 'wallet'
+        };
         _this.subscriptionKeyMapping = {
             orders: 'trading',
-            balance: 'wallet',
+            balance: "wallet-" + balanceTypes[_this._walletType],
         };
         return _this;
     }

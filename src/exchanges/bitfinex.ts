@@ -164,9 +164,15 @@ export class bitfinex extends BaseClient {
     super({ ...params, url: 'wss://api.bitfinex.com/ws/2', name: 'bitfinex' });
     this._walletType = this._walletType || 'spot';
 
+    const balanceTypes = {
+      spot: 'wallet-exchange',
+      margin: 'wallet-margin',
+      future: 'wallet'
+    }
+
     this.subscriptionKeyMapping = {
       orders: 'trading',
-      balance: 'wallet',
+      balance: `wallet-${balanceTypes[this._walletType]}`,
     };
   }
 
