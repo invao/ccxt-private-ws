@@ -172,7 +172,7 @@ export class bitfinex extends BaseClient {
 
     this.subscriptionKeyMapping = {
       orders: 'trading',
-      balance: `wallet-${balanceTypes[this._walletType]}`,
+      balance: balanceTypes[this._walletType],
     };
   }
 

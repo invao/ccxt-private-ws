@@ -347,7 +347,7 @@ var bitfinex = /** @class */ (function (_super) {
         };
         _this.subscriptionKeyMapping = {
             orders: 'trading',
-            balance: "wallet-" + balanceTypes[_this._walletType],
+            balance: balanceTypes[_this._walletType],
         };
         return _this;
     }
