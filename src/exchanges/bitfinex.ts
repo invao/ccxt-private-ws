@@ -165,8 +165,8 @@ export class bitfinex extends BaseClient {
     this._walletType = this._walletType || 'spot';
 
     const balanceTypes = {
-      spot: 'wallet-exchange',
-      margin: 'wallet-margin',
+      spot: 'wallet',
+      margin: 'wallet',
       future: 'wallet'
     }
 
