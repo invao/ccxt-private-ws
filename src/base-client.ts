@@ -13,6 +13,8 @@ import {
   ExchangeCredentials, Order, OrderEvent, OrderInput, OrderListener, Trade, WalletType
 } from './exchange';
 
+let ccxtInstance: Record<string, ccxt.Exchange> = {};
+
 export abstract class BaseClient extends EventEmitter implements Exchange {
   // Class interface to be implemented by specific exchanges
   public async createOrder?({ order }: { order: OrderInput }): Promise<void>;
@@ -52,7 +54,12 @@ export abstract class BaseClient extends EventEmitter implements Exchange {
     this._credentials = params.credentials;
     this._random = uniqueRandom(0, Math.pow(2, 31));
     this._debug = params.debug ? true : false;
-    this._ccxtInstance = new { ...ccxt }[this._name]();
+
+    if (!ccxtInstance[this._name]) {
+      ccxtInstance[this._name] = new { ...ccxt }[this._name]();
+    }
+
+    this._ccxtInstance = ccxtInstance[this._name];
     this._subscribeFilter = [];
     this.subscriptionKeyMapping = {};
     this._orders = {};
@@ -81,6 +88,7 @@ export abstract class BaseClient extends EventEmitter implements Exchange {
       throw new Error('Websocket url missing.');
     }
     this._ws = new ReconnectingWebSocket(this._url, [], { WebSocket, startClosed: true });
+
     await this._ccxtInstance.loadMarkets();
 
     this._connected = new Promise((resolve, reject) => {
@@ -306,8 +314,8 @@ export abstract class BaseClient extends EventEmitter implements Exchange {
     this.debug(`Event on ${this.getName()}: ${event.data}`);
     domain.create().run(() => {
       try {
-      this.onMessage(event);
-      } catch(e) {
+        this.onMessage(event);
+      } catch (e) {
         console.log('Domain error', e);
       }
     });

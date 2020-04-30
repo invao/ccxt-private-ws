@@ -85,6 +85,7 @@ var R = __importStar(require("ramda"));
 var reconnecting_websocket_1 = __importDefault(require("reconnecting-websocket"));
 var unique_random_1 = __importDefault(require("unique-random"));
 var ws_1 = __importDefault(require("ws"));
+var ccxtInstance = {};
 var BaseClient = /** @class */ (function (_super) {
     __extends(BaseClient, _super);
     function BaseClient(params) {
@@ -386,7 +387,10 @@ var BaseClient = /** @class */ (function (_super) {
         _this._credentials = params.credentials;
         _this._random = unique_random_1.default(0, Math.pow(2, 31));
         _this._debug = params.debug ? true : false;
-        _this._ccxtInstance = new (__assign({}, ccxt_1.default)[_this._name])();
+        if (!ccxtInstance[_this._name]) {
+            ccxtInstance[_this._name] = new (__assign({}, ccxt_1.default)[_this._name])();
+        }
+        _this._ccxtInstance = ccxtInstance[_this._name];
         _this._subscribeFilter = [];
         _this.subscriptionKeyMapping = {};
         _this._orders = {};

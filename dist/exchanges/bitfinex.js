@@ -163,23 +163,29 @@ var bitfinex = /** @class */ (function (_super) {
                 switch (_b.label) {
                     case 0:
                         data = JSON.parse(event.data);
-                        if (!(isBitfinexOrderMessage(data) && this._walletType === 'spot')) return [3 /*break*/, 1];
+                        if (!(isBitfinexOrderMessage(data) && this._walletType === 'spot')) return [3 /*break*/, 3];
                         order = this.parseOrder(data[2]);
                         type = this.parseOrderEventType(data[1]);
-                        this.saveCachedOrder(order);
-                        this.updateFeeFromTrades({ orderId: order.id });
-                        this.onOrder({ type: type, order: this.getCachedOrder(order.id) });
-                        return [3 /*break*/, 4];
+                        return [4 /*yield*/, this.saveCachedOrder(order)];
                     case 1:
-                        if (!(isBitfinexTradeMessage(data) && this._walletType === 'spot')) return [3 /*break*/, 3];
+                        _b.sent();
+                        return [4 /*yield*/, this.updateFeeFromTrades({ orderId: order.id })];
+                    case 2:
+                        _b.sent();
+                        this.onOrder({ type: type, order: this.getCachedOrder(order.id) });
+                        return [3 /*break*/, 7];
+                    case 3:
+                        if (!(isBitfinexTradeMessage(data) && this._walletType === 'spot')) return [3 /*break*/, 6];
                         trade = this.parseTrade(data[2]);
                         return [4 /*yield*/, this.saveCachedTrade({ trade: trade, orderId: data[2][3] })];
-                    case 2:
+                    case 4:
                         order = _b.sent();
-                        this.updateFeeFromTrades({ orderId: order.id });
+                        return [4 /*yield*/, this.updateFeeFromTrades({ orderId: order.id })];
+                    case 5:
+                        _b.sent();
                         this.onOrder({ type: exchange_1.OrderEventType.ORDER_UPDATED, order: this.getCachedOrder(order.id) });
-                        return [3 /*break*/, 4];
-                    case 3:
+                        return [3 /*break*/, 7];
+                    case 6:
                         if (isBitfinexWalletMessage(data)) {
                             for (_i = 0, _a = data[2]; _i < _a.length; _i++) {
                                 message = _a[_i];
@@ -195,8 +201,8 @@ var bitfinex = /** @class */ (function (_super) {
                                 this.emit('balance', { update: balance });
                             }
                         }
-                        _b.label = 4;
-                    case 4: return [2 /*return*/];
+                        _b.label = 7;
+                    case 7: return [2 /*return*/];
                 }
             });
         }); };
