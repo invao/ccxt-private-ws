@@ -2,10 +2,10 @@
 import AsyncLock from 'async-lock';
 import ccxt from 'ccxt';
 import domain from 'domain';
-import ReconnectingWebSocket from 'reconnecting-websocket';
 import { EventEmitter } from 'events';
-import { Exchange, ExchangeConstructorOptionalParameters, ExchangeConstructorParameters, ExchangeCredentials, Order, OrderEvent, OrderInput, Trade, WalletType } from './exchange';
+import ReconnectingWebSocket from 'reconnecting-websocket';
 import { ExchangeName } from './';
+import { Exchange, ExchangeConstructorOptionalParameters, ExchangeConstructorParameters, ExchangeCredentials, Order, OrderEvent, OrderInput, Trade, WalletType } from './exchange';
 export declare abstract class BaseClient extends EventEmitter implements Exchange {
     createOrder?({ order }: {
         order: OrderInput;

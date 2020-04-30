@@ -4,14 +4,8 @@ import moment from 'moment';
 
 import { BaseClient } from '../base-client';
 import {
-  BalanceUpdate,
-  ExchangeConstructorOptionalParameters,
-  Order,
-  OrderEventType,
-  OrderExecutionType,
-  OrderInput,
-  Trade,
-  WalletType,
+  BalanceUpdate, ExchangeConstructorOptionalParameters, Order, OrderEventType, OrderExecutionType,
+  OrderInput, Trade, WalletType
 } from '../exchange';
 
 type BitfinexConstructorParams = {
@@ -203,7 +197,7 @@ export class bitfinex extends BaseClient {
     const payload = [0, 'oc', null, orderData];
     this.send(JSON.stringify(payload));
   };
-  
+
   protected onMessage = async (event: MessageEvent) => {
     const data: BitfinexMessage = JSON.parse(event.data);
 
@@ -213,7 +207,7 @@ export class bitfinex extends BaseClient {
       this.saveCachedOrder(order);
       this.updateFeeFromTrades({ orderId: order.id });
       this.onOrder({ type, order: this.getCachedOrder(order.id) });
-    } else if (isBitfinexTradeMessage(data)) {
+    } else if (isBitfinexTradeMessage(data) && this._walletType === 'spot') {
       const trade = this.parseTrade(data[2]);
       const order = await this.saveCachedTrade({ trade, orderId: data[2][3] });
       this.updateFeeFromTrades({ orderId: order.id });
@@ -370,7 +364,7 @@ export class bitfinex extends BaseClient {
       this.send(JSON.stringify([0, 'calc', null, [[`wallet_funding_${currency}`]]]));
       return undefined;
     }
-    
+
     const free = new Decimal(message[4]);
     const total = new Decimal(message[2]);
     const used =

@@ -1,25 +1,17 @@
-import * as R from 'ramda';
 import AsyncLock from 'async-lock';
 import ccxt from 'ccxt';
 import domain from 'domain';
+import { EventEmitter } from 'events';
+import * as R from 'ramda';
 import ReconnectingWebSocket from 'reconnecting-websocket';
 import uniqueRandom from 'unique-random';
 import WebSocket from 'ws';
-import { EventEmitter } from 'events';
-import {
-  Exchange,
-  ExchangeConstructorOptionalParameters,
-  ExchangeConstructorParameters,
-  ExchangeCredentials,
-  Order,
-  OrderEvent,
-  OrderInput,
-  OrderListener,
-  Trade,
-  BalanceEvent,
-  WalletType,
-} from './exchange';
+
 import { ExchangeName } from './';
+import {
+  BalanceEvent, Exchange, ExchangeConstructorOptionalParameters, ExchangeConstructorParameters,
+  ExchangeCredentials, Order, OrderEvent, OrderInput, OrderListener, Trade, WalletType
+} from './exchange';
 
 export abstract class BaseClient extends EventEmitter implements Exchange {
   // Class interface to be implemented by specific exchanges
@@ -313,7 +305,11 @@ export abstract class BaseClient extends EventEmitter implements Exchange {
   private _onMessage = (event: MessageEvent) => {
     this.debug(`Event on ${this.getName()}: ${event.data}`);
     domain.create().run(() => {
+      try {
       this.onMessage(event);
+      } catch(e) {
+        console.log('Domain error', e);
+      }
     });
   };
 

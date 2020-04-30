@@ -66,6 +66,9 @@ var __spreadArrays = (this && this.__spreadArrays) || function () {
             r[k] = a[j];
     return r;
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 var __importStar = (this && this.__importStar) || function (mod) {
     if (mod && mod.__esModule) return mod;
     var result = {};
@@ -73,18 +76,15 @@ var __importStar = (this && this.__importStar) || function (mod) {
     result["default"] = mod;
     return result;
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-var R = __importStar(require("ramda"));
 var async_lock_1 = __importDefault(require("async-lock"));
 var ccxt_1 = __importDefault(require("ccxt"));
 var domain_1 = __importDefault(require("domain"));
+var events_1 = require("events");
+var R = __importStar(require("ramda"));
 var reconnecting_websocket_1 = __importDefault(require("reconnecting-websocket"));
 var unique_random_1 = __importDefault(require("unique-random"));
 var ws_1 = __importDefault(require("ws"));
-var events_1 = require("events");
 var BaseClient = /** @class */ (function (_super) {
     __extends(BaseClient, _super);
     function BaseClient(params) {
@@ -350,7 +350,12 @@ var BaseClient = /** @class */ (function (_super) {
         _this._onMessage = function (event) {
             _this.debug("Event on " + _this.getName() + ": " + event.data);
             domain_1.default.create().run(function () {
-                _this.onMessage(event);
+                try {
+                    _this.onMessage(event);
+                }
+                catch (e) {
+                    console.log('Domain error', e);
+                }
             });
         };
         _this._onOpen = function () {

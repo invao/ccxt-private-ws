@@ -171,7 +171,7 @@ var bitfinex = /** @class */ (function (_super) {
                         this.onOrder({ type: type, order: this.getCachedOrder(order.id) });
                         return [3 /*break*/, 4];
                     case 1:
-                        if (!isBitfinexTradeMessage(data)) return [3 /*break*/, 3];
+                        if (!(isBitfinexTradeMessage(data) && this._walletType === 'spot')) return [3 /*break*/, 3];
                         trade = this.parseTrade(data[2]);
                         return [4 /*yield*/, this.saveCachedTrade({ trade: trade, orderId: data[2][3] })];
                     case 2:
