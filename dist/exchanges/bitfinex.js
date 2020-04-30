@@ -163,6 +163,7 @@ var bitfinex = /** @class */ (function (_super) {
                 switch (_b.label) {
                     case 0:
                         data = JSON.parse(event.data);
+                        console.log('wallet type', this._ccxtInstance.id, this._walletType);
                         if (!(isBitfinexOrderMessage(data) && this._walletType === 'spot')) return [3 /*break*/, 3];
                         order = this.parseOrder(data[2]);
                         type = this.parseOrderEventType(data[1]);
