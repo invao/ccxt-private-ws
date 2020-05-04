@@ -1,6 +1,6 @@
 import ccxt from 'ccxt';
 
-import { ExchangeName } from '.';
+import { ExchangeName } from './';
 
 export type Trade = {
   info: any;
@@ -22,7 +22,15 @@ export type Trade = {
   };
 };
 
-export type OrderExecutionType = 'limit' | 'market' | string | undefined;
+export type OrderExecutionType =
+  | 'limit'
+  | 'market'
+  | 'stoplossLimit'
+  | 'stoplossMarket'
+  | 'trailingStoploss'
+  | string
+  | undefined;
+
 export type OrderStatus = 'open' | 'closed' | 'canceled' | 'failed' | 'unknown';
 export type Order = {
   id: string | number;

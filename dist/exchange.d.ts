@@ -1,5 +1,5 @@
 import ccxt from 'ccxt';
-import { ExchangeName } from '.';
+import { ExchangeName } from './';
 export declare type Trade = {
     info: any;
     id: string;
@@ -19,7 +19,7 @@ export declare type Trade = {
         rate?: number;
     };
 };
-export declare type OrderExecutionType = 'limit' | 'market' | string | undefined;
+export declare type OrderExecutionType = 'limit' | 'market' | 'stoplossLimit' | 'stoplossMarket' | 'trailingStoploss' | string | undefined;
 export declare type OrderStatus = 'open' | 'closed' | 'canceled' | 'failed' | 'unknown';
 export declare type Order = {
     id: string | number;
