@@ -234,12 +234,11 @@ var bitfinex = /** @class */ (function (_super) {
                 case 'LIMIT':
                     return 'limit';
                 case 'EXCHANGE STOP LIMIT':
-                    return 'stoplossLimit';
                 case 'EXCHANGE STOP':
-                    return 'stoplossMarket';
+                    return 'stop';
                 case 'EXCHANGE TRAILING STOP':
                 case 'TRAILING STOP':
-                    return 'trailingStoploss';
+                    return 'trailing-stop';
             }
             return 'market';
         };
