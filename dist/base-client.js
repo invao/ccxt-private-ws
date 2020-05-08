@@ -86,6 +86,7 @@ var reconnecting_websocket_1 = __importDefault(require("reconnecting-websocket")
 var unique_random_1 = __importDefault(require("unique-random"));
 var ws_1 = __importDefault(require("ws"));
 var ccxtInstance = {};
+var RECONNECT_DELAY = 5000;
 var BaseClient = /** @class */ (function (_super) {
     __extends(BaseClient, _super);
     function BaseClient(params) {
@@ -148,15 +149,22 @@ var BaseClient = /** @class */ (function (_super) {
             }
         };
         _this.reconnect = function (code, reason) { return __awaiter(_this, void 0, void 0, function () {
+            var _this = this;
             return __generator(this, function (_a) {
-                if (this._ws) {
-                    this.debug("Reconnecting to " + this._name + ".");
-                    this._ws.reconnect(code, reason);
+                switch (_a.label) {
+                    case 0:
+                        if (!this._ws) return [3 /*break*/, 2];
+                        this.debug("Reconnecting to " + this._name + ".");
+                        return [4 /*yield*/, this.disconnect()];
+                    case 1:
+                        _a.sent();
+                        setTimeout(function () { return _this.connect(); }, RECONNECT_DELAY);
+                        return [3 /*break*/, 3];
+                    case 2:
+                        this.debug("Cannot reconnect to " + this._name + ".");
+                        _a.label = 3;
+                    case 3: return [2 /*return*/];
                 }
-                else {
-                    this.debug("Cannot reconnect to " + this._name + ".");
-                }
-                return [2 /*return*/];
             });
         }); };
         _this.disconnect = function () { return __awaiter(_this, void 0, void 0, function () {

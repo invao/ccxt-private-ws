@@ -14,6 +14,7 @@ import {
 } from './exchange';
 
 let ccxtInstance: Record<string, ccxt.Exchange> = {};
+const RECONNECT_DELAY=5000;
 
 export abstract class BaseClient extends EventEmitter implements Exchange {
   // Class interface to be implemented by specific exchanges
@@ -130,7 +131,8 @@ export abstract class BaseClient extends EventEmitter implements Exchange {
   public reconnect = async (code?: number, reason?: string) => {
     if (this._ws) {
       this.debug(`Reconnecting to ${this._name}.`);
-      this._ws.reconnect(code, reason);
+      await this.disconnect();
+      setTimeout(() => this.connect(), RECONNECT_DELAY);
     } else {
       this.debug(`Cannot reconnect to ${this._name}.`);
     }
