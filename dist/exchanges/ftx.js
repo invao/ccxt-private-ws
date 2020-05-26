@@ -86,8 +86,8 @@ var ftx = /** @class */ (function (_super) {
                 args: {
                     key: credentials.apiKey,
                     sign: sign,
-                    time: time
-                }
+                    time: time,
+                },
             };
             _this.send(JSON.stringify(payload));
             _this.subscribe();
@@ -98,6 +98,9 @@ var ftx = /** @class */ (function (_super) {
                 _a = JSON.parse(event.data), channel = _a.channel, type = _a.type, data = _a.data;
                 if (type === 'update' && data && (channel === 'orders' || channel === 'fills')) {
                     order = this.parseOrder(data);
+                    if (!this.isCorrectMarketType(order)) {
+                        return [2 /*return*/];
+                    }
                     type_1 = this.parseOrderEventType(data);
                     this.saveCachedOrder(order);
                     this.updateFeeFromTrades({ orderId: order.id });
@@ -129,9 +132,22 @@ var ftx = /** @class */ (function (_super) {
         _this.parseOrder = function (data) {
             return _this._ccxtInstance['parseOrder'](data);
         };
+        _this.isCorrectMarketType = function (order) {
+            var _a = order.symbol.split('/'), base = _a[0], quote = _a[1];
+            switch (_this._walletType) {
+                case undefined:
+                case null:
+                case 'spot':
+                    return base && quote;
+                case 'future':
+                    return base && !quote;
+                default:
+                    return false;
+            }
+        };
         _this.subscriptionKeyMapping = {
             orders: 'orders',
-            fills: 'fills'
+            fills: 'fills',
         };
         return _this;
     }
