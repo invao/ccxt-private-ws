@@ -15,7 +15,7 @@ export class ftx extends BaseClient {
     super({ ...params, url: 'wss://ftx.com/ws/', name: 'ftx' });
     this.subscriptionKeyMapping = {
       orders: 'orders',
-      fills: 'fills'
+      fills: 'fills',
     };
   }
 
@@ -38,8 +38,8 @@ export class ftx extends BaseClient {
       args: {
         key: credentials.apiKey,
         sign,
-        time
-      }
+        time,
+      },
     };
 
     this.send(JSON.stringify(payload));
@@ -52,6 +52,10 @@ export class ftx extends BaseClient {
 
     if (type === 'update' && data && (channel === 'orders' || channel === 'fills')) {
       const order = this.parseOrder(data);
+      if (!this.isCorrectMarketType(order)) {
+        return;
+      }
+
       const type = this.parseOrderEventType(data);
       this.saveCachedOrder(order);
       this.updateFeeFromTrades({ orderId: order.id });
@@ -84,5 +88,20 @@ export class ftx extends BaseClient {
 
   private parseOrder = (data: object): Order => {
     return this._ccxtInstance['parseOrder'](data);
+  };
+
+  private isCorrectMarketType = (order: Order) => {
+    const [base, quote] = order.symbol.split('/');
+
+    switch (this._walletType) {
+      case undefined:
+      case null:
+      case 'spot':
+        return base && quote;
+      case 'future':
+        return base && !quote;
+      default:
+        return false;
+    }
   };
 }

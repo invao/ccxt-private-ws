@@ -15,5 +15,6 @@ export declare class ftx extends BaseClient {
     private parseOrderEventType;
     private subscribe;
     private parseOrder;
+    private isCorrectMarketType;
 }
 export {};
