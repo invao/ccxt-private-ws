@@ -39,6 +39,7 @@ export class ftx extends BaseClient {
         key: credentials.apiKey,
         sign,
         time,
+        subaccount: this._accountId,
       },
     };
 
