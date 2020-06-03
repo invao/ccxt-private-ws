@@ -87,6 +87,7 @@ var ftx = /** @class */ (function (_super) {
                     key: credentials.apiKey,
                     sign: sign,
                     time: time,
+                    subaccount: _this._accountId,
                 },
             };
             _this.send(JSON.stringify(payload));
