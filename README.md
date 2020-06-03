@@ -1,4 +1,4 @@
-# CCXT Private Websockts
+# CCXT Private Websockets
 
 A JavaScript library for cryptocurrency trading using authenticated websocket connections.
 
