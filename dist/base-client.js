@@ -405,6 +405,7 @@ var BaseClient = /** @class */ (function (_super) {
         _this.lock = new async_lock_1.default({ domainReentrant: true });
         _this.lockDomain = domain_1.default.create();
         _this._walletType = _this.getCredentials().walletType;
+        _this._accountId = _this.getCredentials().accountId;
         if (params.reconnectIntervalEnabled !== undefined) {
             _this._reconnectIntervalEnabled = params.reconnectIntervalEnabled;
         }

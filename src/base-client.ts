@@ -37,6 +37,7 @@ export abstract class BaseClient extends EventEmitter implements Exchange {
   protected lockDomain: domain.Domain;
   protected preConnect?: () => void;
   protected _walletType?: WalletType;
+  protected _accountId?: string;
 
   private readonly _name: ExchangeName;
   private _url?: string;
@@ -67,6 +68,7 @@ export abstract class BaseClient extends EventEmitter implements Exchange {
     this.lock = new AsyncLock({ domainReentrant: true });
     this.lockDomain = domain.create();
     this._walletType = this.getCredentials().walletType;
+    this._accountId = this.getCredentials().accountId;
 
     if (params.reconnectIntervalEnabled !== undefined) {
       this._reconnectIntervalEnabled = params.reconnectIntervalEnabled;

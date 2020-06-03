@@ -28,6 +28,7 @@ export declare abstract class BaseClient extends EventEmitter implements Exchang
     protected lockDomain: domain.Domain;
     protected preConnect?: () => void;
     protected _walletType?: WalletType;
+    protected _accountId?: string;
     private readonly _name;
     private _url?;
     private _connected?;
