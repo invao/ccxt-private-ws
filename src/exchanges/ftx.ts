@@ -17,6 +17,8 @@ export class ftx extends BaseClient {
       orders: 'orders',
       fills: 'fills',
     };
+
+    setInterval(this.ping, 15000);
   }
 
   public createClientId = () => {
@@ -86,6 +88,15 @@ export class ftx extends BaseClient {
     this.send(JSON.stringify({ op: 'subscribe', channel: 'orders' }));
     this.send(JSON.stringify({ op: 'subscribe', channel: 'fills' }));
   };
+
+  private ping = async () => {
+    try {
+      await this.assertConnected();
+      this.send(JSON.stringify({ op: 'ping' }));
+    } catch (e) {
+      // Doing nothing for now
+    }
+  }
 
   private parseOrder = (data: object): Order => {
     return this._ccxtInstance['parseOrder'](data);

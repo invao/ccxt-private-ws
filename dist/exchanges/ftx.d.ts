@@ -14,6 +14,7 @@ export declare class ftx extends BaseClient {
     protected onMessage: (event: MessageEvent) => Promise<void>;
     private parseOrderEventType;
     private subscribe;
+    private ping;
     private parseOrder;
     private isCorrectMarketType;
 }

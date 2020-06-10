@@ -130,6 +130,24 @@ var ftx = /** @class */ (function (_super) {
             _this.send(JSON.stringify({ op: 'subscribe', channel: 'orders' }));
             _this.send(JSON.stringify({ op: 'subscribe', channel: 'fills' }));
         };
+        _this.ping = function () { return __awaiter(_this, void 0, void 0, function () {
+            var e_1;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        _a.trys.push([0, 2, , 3]);
+                        return [4 /*yield*/, this.assertConnected()];
+                    case 1:
+                        _a.sent();
+                        this.send(JSON.stringify({ op: 'ping' }));
+                        return [3 /*break*/, 3];
+                    case 2:
+                        e_1 = _a.sent();
+                        return [3 /*break*/, 3];
+                    case 3: return [2 /*return*/];
+                }
+            });
+        }); };
         _this.parseOrder = function (data) {
             return _this._ccxtInstance['parseOrder'](data);
         };
@@ -150,6 +168,7 @@ var ftx = /** @class */ (function (_super) {
             orders: 'orders',
             fills: 'fills',
         };
+        setInterval(_this.ping, 15000);
         return _this;
     }
     return ftx;
