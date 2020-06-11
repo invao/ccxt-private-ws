@@ -16,6 +16,7 @@ export declare class ftx extends BaseClient {
     private subscribe;
     private ping;
     private parseOrder;
+    private parseTrade;
     private isCorrectMarketType;
 }
 export {};

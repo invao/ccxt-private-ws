@@ -1,3 +1,4 @@
+import { Trade } from 'ccxt';
 import crypto from 'crypto-js';
 
 import { BaseClient } from '../base-client';
@@ -53,16 +54,32 @@ export class ftx extends BaseClient {
   protected onMessage = async (event: MessageEvent) => {
     const { channel, type, data } = JSON.parse(event.data);
 
-    if (type === 'update' && data && (channel === 'orders' || channel === 'fills')) {
-      const order = this.parseOrder(data);
-      if (!this.isCorrectMarketType(order)) {
-        return;
-      }
+    if (type === 'update' && data) {
+      switch (channel) {
+        case 'orders': {
+          const order = this.parseOrder(data);
+          if (!this.isCorrectMarketType(order)) {
+            return;
+          }
 
-      const type = this.parseOrderEventType(data);
-      this.saveCachedOrder(order);
-      this.updateFeeFromTrades({ orderId: order.id });
-      this.onOrder({ type, order: this.getCachedOrder(order.id) });
+          const type = this.parseOrderEventType(data);
+          this.saveCachedOrder(order);
+          this.updateFeeFromTrades({ orderId: order.id });
+          this.onOrder({ type, order: this.getCachedOrder(order.id) });
+          break;
+        }
+        case 'fills': {
+          const trade = this.parseTrade(data);
+          if (!this.isCorrectMarketType(trade) || !trade.order) {
+            return;
+          }
+
+          const order = await this.saveCachedTrade({ trade, orderId: trade.order });
+          this.updateFeeFromTrades({ orderId: order.id });
+          this.onOrder({ type: OrderEventType.ORDER_UPDATED, order: this.getCachedOrder(order.id) });
+          break;
+        }
+      }
     }
   };
 
@@ -96,13 +113,17 @@ export class ftx extends BaseClient {
     } catch (e) {
       // Doing nothing for now
     }
-  }
+  };
 
   private parseOrder = (data: object): Order => {
     return this._ccxtInstance['parseOrder'](data);
   };
 
-  private isCorrectMarketType = (order: Order) => {
+  private parseTrade = (data: object): Trade => {
+    return this._ccxtInstance['parseTrade'](data);
+  };
+
+  private isCorrectMarketType = (order: Order | Trade) => {
     const [base, quote] = order.symbol.split('/');
 
     switch (this._walletType) {

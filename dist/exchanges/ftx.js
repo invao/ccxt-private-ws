@@ -94,20 +94,44 @@ var ftx = /** @class */ (function (_super) {
             _this.subscribe();
         };
         _this.onMessage = function (event) { return __awaiter(_this, void 0, void 0, function () {
-            var _a, channel, type, data, order, type_1;
-            return __generator(this, function (_b) {
-                _a = JSON.parse(event.data), channel = _a.channel, type = _a.type, data = _a.data;
-                if (type === 'update' && data && (channel === 'orders' || channel === 'fills')) {
-                    order = this.parseOrder(data);
-                    if (!this.isCorrectMarketType(order)) {
-                        return [2 /*return*/];
-                    }
-                    type_1 = this.parseOrderEventType(data);
-                    this.saveCachedOrder(order);
-                    this.updateFeeFromTrades({ orderId: order.id });
-                    this.onOrder({ type: type_1, order: this.getCachedOrder(order.id) });
+            var _a, channel, type, data, _b, order, type_1, trade, order;
+            return __generator(this, function (_c) {
+                switch (_c.label) {
+                    case 0:
+                        _a = JSON.parse(event.data), channel = _a.channel, type = _a.type, data = _a.data;
+                        if (!(type === 'update' && data)) return [3 /*break*/, 4];
+                        _b = channel;
+                        switch (_b) {
+                            case 'orders': return [3 /*break*/, 1];
+                            case 'fills': return [3 /*break*/, 2];
+                        }
+                        return [3 /*break*/, 4];
+                    case 1:
+                        {
+                            order = this.parseOrder(data);
+                            if (!this.isCorrectMarketType(order)) {
+                                return [2 /*return*/];
+                            }
+                            type_1 = this.parseOrderEventType(data);
+                            this.saveCachedOrder(order);
+                            this.updateFeeFromTrades({ orderId: order.id });
+                            this.onOrder({ type: type_1, order: this.getCachedOrder(order.id) });
+                            return [3 /*break*/, 4];
+                        }
+                        _c.label = 2;
+                    case 2:
+                        trade = this.parseTrade(data);
+                        if (!this.isCorrectMarketType(trade) || !trade.order) {
+                            return [2 /*return*/];
+                        }
+                        return [4 /*yield*/, this.saveCachedTrade({ trade: trade, orderId: trade.order })];
+                    case 3:
+                        order = _c.sent();
+                        this.updateFeeFromTrades({ orderId: order.id });
+                        this.onOrder({ type: exchange_1.OrderEventType.ORDER_UPDATED, order: this.getCachedOrder(order.id) });
+                        return [3 /*break*/, 4];
+                    case 4: return [2 /*return*/];
                 }
-                return [2 /*return*/];
             });
         }); };
         _this.parseOrderEventType = function (order) {
@@ -150,6 +174,9 @@ var ftx = /** @class */ (function (_super) {
         }); };
         _this.parseOrder = function (data) {
             return _this._ccxtInstance['parseOrder'](data);
+        };
+        _this.parseTrade = function (data) {
+            return _this._ccxtInstance['parseTrade'](data);
         };
         _this.isCorrectMarketType = function (order) {
             var _a = order.symbol.split('/'), base = _a[0], quote = _a[1];
