@@ -363,17 +363,14 @@ export class binance extends BaseClient {
         endpoint = `wss://fstream.binance.com/stream?streams=${this._listenKey}`;
         break;
       case 'spot':
+      default:
         const spotDataStream = await ccxtInstance.publicPostUserDataStream();
         this._listenKey = spotDataStream.listenKey;
         endpoint = `wss://stream.binance.com:9443/ws/${this._listenKey}`;
         break;
     }
 
-    if (!endpoint) {
-      throw new Error(`Market type ${this._walletType} not supported`);
-    }
-
-    this.setUrl(endpoint);
+    this.setUrl(endpoint);  
   };
 
   protected preConnect = async () => {

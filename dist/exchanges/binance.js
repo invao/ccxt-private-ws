@@ -357,7 +357,7 @@ var binance = /** @class */ (function (_super) {
                             case 'future': return [3 /*break*/, 2];
                             case 'spot': return [3 /*break*/, 4];
                         }
-                        return [3 /*break*/, 6];
+                        return [3 /*break*/, 4];
                     case 2: return [4 /*yield*/, ccxtInstance.fapiPrivatePostListenKey()];
                     case 3:
                         futureDataStream = _b.sent();
@@ -371,9 +371,6 @@ var binance = /** @class */ (function (_super) {
                         endpoint = "wss://stream.binance.com:9443/ws/" + this._listenKey;
                         return [3 /*break*/, 6];
                     case 6:
-                        if (!endpoint) {
-                            throw new Error("Market type " + this._walletType + " not supported");
-                        }
                         this.setUrl(endpoint);
                         return [2 /*return*/];
                 }
