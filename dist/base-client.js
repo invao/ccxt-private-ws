@@ -212,6 +212,18 @@ var BaseClient = /** @class */ (function (_super) {
                 _this._ws.reconnect();
             }
         };
+        _this.subscribePositions = function () {
+            if (!_this.subscriptionKeyMapping['positions']) {
+                return;
+            }
+            var filters = typeof _this.subscriptionKeyMapping['positions'] === 'string'
+                ? [_this.subscriptionKeyMapping['positions']]
+                : _this.subscriptionKeyMapping['positions'];
+            _this._subscribeFilter = R.uniq(__spreadArrays(_this._subscribeFilter, filters));
+            if (_this._ws) {
+                _this._ws.reconnect();
+            }
+        };
         _this.send = function (message) {
             _this.debug("Sending message to " + _this.getName() + ": " + message);
             if (_this._ws) {

@@ -33,6 +33,7 @@ export declare type Order = {
     cost: number;
     filled: number;
     remaining: number;
+    average?: number;
     status: OrderStatus;
     fee?: {
         cost: number;
@@ -66,8 +67,20 @@ export declare type OrderInput = {
 };
 export declare type OrderListener = (event: OrderEvent) => void;
 export declare type BalanceListener = (event: BalanceEvent) => void;
+export declare type PositionsListener = (event: PositionEvent) => void;
 export declare type ConnectListener = () => void;
 export declare type BalanceUpdate = ccxt.Balances;
+export declare type Position = {
+    symbol: string;
+    amount: number;
+    markPrice: number;
+    entryPrice: number;
+    info: any;
+};
+export declare type PositionUpdate = Position[];
+export declare type PositionEvent = {
+    update: PositionUpdate;
+};
 export declare type WalletType = 'spot' | 'margin' | 'future';
 export declare type ExchangeConstructorParameters = {
     name: ExchangeName;
@@ -93,6 +106,7 @@ export interface Exchange {
     on(event: 'balance', listener: BalanceListener): void;
     on(event: 'fullBalance', listener: BalanceListener): void;
     on(event: 'connect', listener: ConnectListener): void;
+    on(event: 'positions', listener: PositionsListener): void;
     createOrder?({ order }: {
         order: OrderInput;
     }): Promise<void>;
@@ -102,6 +116,7 @@ export interface Exchange {
     createClientId?(): string;
     subscribeOrders(): void;
     subscribeBalances(): void;
+    subscribePositions(): void;
     connect(): Promise<void>;
     disconnect(): Promise<void>;
     getName(): string;

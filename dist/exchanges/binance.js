@@ -75,60 +75,116 @@ var moment_1 = __importDefault(require("moment"));
 var R = __importStar(require("ramda"));
 var base_client_1 = require("../base-client");
 var exchange_1 = require("../exchange");
-var BinanceOrderExecutionType;
-(function (BinanceOrderExecutionType) {
-    BinanceOrderExecutionType["NEW"] = "NEW";
-    BinanceOrderExecutionType["CANCELED"] = "CANCELED";
-    BinanceOrderExecutionType["REPLACED"] = "REPLACED";
-    BinanceOrderExecutionType["REJECTED"] = "REJECTED";
-    BinanceOrderExecutionType["EXPIRED"] = "EXPIRED";
-})(BinanceOrderExecutionType || (BinanceOrderExecutionType = {}));
-var BinanceOrderStatus;
-(function (BinanceOrderStatus) {
-    BinanceOrderStatus["NEW"] = "NEW";
-    BinanceOrderStatus["PARTIALLY_FILLED"] = "PARTIALLY_FILLED";
-    BinanceOrderStatus["FILLED"] = "FILLED";
-    BinanceOrderStatus["CANCELED"] = "CANCELED";
-    BinanceOrderStatus["PENDING_CANCEL"] = "PENDING_CANCEL";
-    BinanceOrderStatus["REJECTED"] = "REJECTED";
-    BinanceOrderStatus["EXPIRED"] = "EXPIRED";
-})(BinanceOrderStatus || (BinanceOrderStatus = {}));
-var isBinanceOrderMessage = function (message) {
+var BinanceSpotOrderExecutionType;
+(function (BinanceSpotOrderExecutionType) {
+    BinanceSpotOrderExecutionType["NEW"] = "NEW";
+    BinanceSpotOrderExecutionType["CANCELED"] = "CANCELED";
+    BinanceSpotOrderExecutionType["REPLACED"] = "REPLACED";
+    BinanceSpotOrderExecutionType["REJECTED"] = "REJECTED";
+    BinanceSpotOrderExecutionType["EXPIRED"] = "EXPIRED";
+    BinanceSpotOrderExecutionType["TRADE"] = "TRADE";
+})(BinanceSpotOrderExecutionType || (BinanceSpotOrderExecutionType = {}));
+var BinanceSpotOrderStatus;
+(function (BinanceSpotOrderStatus) {
+    BinanceSpotOrderStatus["NEW"] = "NEW";
+    BinanceSpotOrderStatus["PARTIALLY_FILLED"] = "PARTIALLY_FILLED";
+    BinanceSpotOrderStatus["FILLED"] = "FILLED";
+    BinanceSpotOrderStatus["CANCELED"] = "CANCELED";
+    BinanceSpotOrderStatus["PENDING_CANCEL"] = "PENDING_CANCEL";
+    BinanceSpotOrderStatus["REJECTED"] = "REJECTED";
+    BinanceSpotOrderStatus["EXPIRED"] = "EXPIRED";
+})(BinanceSpotOrderStatus || (BinanceSpotOrderStatus = {}));
+var BinanceFutureOrderExecutionType;
+(function (BinanceFutureOrderExecutionType) {
+    BinanceFutureOrderExecutionType["NEW"] = "NEW";
+    BinanceFutureOrderExecutionType["PARTIAL_FILL"] = "PARTIAL_FILL";
+    BinanceFutureOrderExecutionType["FILL"] = "FILL";
+    BinanceFutureOrderExecutionType["CANCELED"] = "CANCELED";
+    BinanceFutureOrderExecutionType["PENDING_CANCEL"] = "PENDING_CANCEL";
+    BinanceFutureOrderExecutionType["REJECTED"] = "REJECTED";
+    BinanceFutureOrderExecutionType["CALCULATED"] = "CALCULATED";
+    BinanceFutureOrderExecutionType["EXPIRED"] = "EXPIRED";
+    BinanceFutureOrderExecutionType["TRADE"] = "TRADE";
+    BinanceFutureOrderExecutionType["RESTATED"] = "RESTATED";
+})(BinanceFutureOrderExecutionType || (BinanceFutureOrderExecutionType = {}));
+var BinanceFutureOrderStatus;
+(function (BinanceFutureOrderStatus) {
+    BinanceFutureOrderStatus["NEW"] = "NEW";
+    BinanceFutureOrderStatus["PARTIALLY_FILLED"] = "PARTIALLY_FILLED";
+    BinanceFutureOrderStatus["FILLED"] = "FILLED";
+    BinanceFutureOrderStatus["CANCELED"] = "CANCELED";
+    BinanceFutureOrderStatus["PENDING_CANCEL"] = "PENDING_CANCEL";
+    BinanceFutureOrderStatus["REJECTED"] = "REJECTED";
+    BinanceFutureOrderStatus["EXPIRED"] = "EXPIRED";
+    BinanceFutureOrderStatus["REPLACED"] = "REPLACED";
+    BinanceFutureOrderStatus["STOPPED"] = "STOPPED";
+    BinanceFutureOrderStatus["NEW_INSURANCE"] = "NEW_INSURANCE";
+    BinanceFutureOrderStatus["NEW_ADL"] = "NEW_ADL";
+})(BinanceFutureOrderStatus || (BinanceFutureOrderStatus = {}));
+var isBinanceSpotOrderMessage = function (message) {
     return (message.e === 'executionReport' &&
         message.x !== 'TRADE');
 };
-var isBinanceTradeMessage = function (message) {
-    return (message.e === 'executionReport' && message.x === 'TRADE');
+var isBinanceSpotTradeMessage = function (message) {
+    return (message.e === 'executionReport' &&
+        message.x === 'TRADE');
 };
-var isBinanceAccountInfoMessage = function (message) {
+var isBinanceSpotAccountInfoMessage = function (message) {
     return message.e === 'outboundAccountInfo';
 };
-var isBinanceAccountPositionMessage = function (message) {
+var isBinanceSpotAccountPositionMessage = function (message) {
     return message.e === 'outboundAccountPosition';
+};
+var isBinanceFutureOrderMessage = function (message) {
+    return (message.e === 'ORDER_TRADE_UPDATE' &&
+        message.o.x !== 'TRADE');
+};
+var isBinanceFutureTradeMessage = function (message) {
+    return (message.e === 'ORDER_TRADE_UPDATE' &&
+        message.o.x === 'TRADE');
+};
+var isBinanceFutureAccountInfoMessage = function (message) {
+    return message.e === 'ACCOUNT_UPDATE';
 };
 var binance = /** @class */ (function (_super) {
     __extends(binance, _super);
     function binance(params) {
         var _this = _super.call(this, __assign(__assign({}, params), { url: '', name: 'binance' })) || this;
         _this.onMessage = function (event) { return __awaiter(_this, void 0, void 0, function () {
+            var _a;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0:
+                        _a = this._walletType;
+                        switch (_a) {
+                            case 'spot': return [3 /*break*/, 1];
+                            case 'future': return [3 /*break*/, 3];
+                        }
+                        return [3 /*break*/, 5];
+                    case 1: return [4 /*yield*/, this.onSpotMessages(event)];
+                    case 2: return [2 /*return*/, _b.sent()];
+                    case 3: return [4 /*yield*/, this.onFutureMessages(event)];
+                    case 4: return [2 /*return*/, _b.sent()];
+                    case 5: return [2 /*return*/];
+                }
+            });
+        }); };
+        _this.onSpotMessages = function (event) { return __awaiter(_this, void 0, void 0, function () {
             var data, orderId_1, orderId_2, balance, balance;
             var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
                         data = JSON.parse(event.data);
-                        if (this._walletType !== 'spot') {
-                            return [2 /*return*/];
-                        }
-                        if (!isBinanceOrderMessage(data)) return [3 /*break*/, 2];
-                        orderId_1 = this.getOrderId(data);
+                        if (!isBinanceSpotOrderMessage(data)) return [3 /*break*/, 2];
+                        orderId_1 = this.getSpotOrderId(data);
                         return [4 /*yield*/, this.lock.acquire(orderId_1, function () { return __awaiter(_this, void 0, void 0, function () {
                                 var type, order;
                                 return __generator(this, function (_a) {
                                     switch (_a.label) {
                                         case 0:
-                                            type = this.getOrderEventType(data);
-                                            return [4 /*yield*/, this.parseOrder(data)];
+                                            type = this.getSpotOrderEventType(data);
+                                            return [4 /*yield*/, this.parseSpotOrder(data)];
                                         case 1:
                                             order = _a.sent();
                                             return [4 /*yield*/, this.saveCachedOrder(order)];
@@ -146,21 +202,21 @@ var binance = /** @class */ (function (_super) {
                         _a.sent();
                         return [3 /*break*/, 5];
                     case 2:
-                        if (!isBinanceTradeMessage(data)) return [3 /*break*/, 4];
-                        orderId_2 = this.getOrderId(data);
+                        if (!isBinanceSpotTradeMessage(data)) return [3 /*break*/, 4];
+                        orderId_2 = this.getSpotOrderId(data);
                         return [4 /*yield*/, this.lock.acquire(orderId_2, function () { return __awaiter(_this, void 0, void 0, function () {
                                 var type, order, trade;
                                 return __generator(this, function (_a) {
                                     switch (_a.label) {
                                         case 0:
-                                            type = this.getOrderEventType(data);
-                                            return [4 /*yield*/, this.parseOrder(data)];
+                                            type = this.getSpotOrderEventType(data);
+                                            return [4 /*yield*/, this.parseSpotOrder(data)];
                                         case 1:
                                             order = _a.sent();
                                             return [4 /*yield*/, this.saveCachedOrder(order)];
                                         case 2:
                                             _a.sent();
-                                            return [4 /*yield*/, this.parseTrade(data)];
+                                            return [4 /*yield*/, this.parseSpotTrade(data)];
                                         case 3:
                                             trade = _a.sent();
                                             return [4 /*yield*/, this.saveCachedTrade({ trade: trade, orderId: orderId_2 })];
@@ -178,16 +234,92 @@ var binance = /** @class */ (function (_super) {
                         _a.sent();
                         return [3 /*break*/, 5];
                     case 4:
-                        if (isBinanceAccountInfoMessage(data)) {
-                            balance = this.parseBalance(data);
+                        if (isBinanceSpotAccountInfoMessage(data)) {
+                            balance = this.parseSpotBalance(data);
                             if (balance) {
                                 this.emit('fullBalance', { update: balance });
                             }
                         }
-                        else if (isBinanceAccountPositionMessage(data)) {
-                            balance = this.parseBalance(data);
+                        else if (isBinanceSpotAccountPositionMessage(data)) {
+                            balance = this.parseSpotBalance(data);
                             if (balance) {
                                 this.emit('balance', { update: balance });
+                            }
+                        }
+                        _a.label = 5;
+                    case 5: return [2 /*return*/];
+                }
+            });
+        }); };
+        _this.onFutureMessages = function (event) { return __awaiter(_this, void 0, void 0, function () {
+            var data, orderId_3, orderId_4, positions;
+            var _this = this;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        data = JSON.parse(event.data).data;
+                        if (!(isBinanceFutureOrderMessage(data) || isBinanceFutureTradeMessage(data))) return [3 /*break*/, 2];
+                        orderId_3 = this.getFutureOrderId(data);
+                        return [4 /*yield*/, this.lock.acquire(orderId_3, function () { return __awaiter(_this, void 0, void 0, function () {
+                                var type, order;
+                                return __generator(this, function (_a) {
+                                    switch (_a.label) {
+                                        case 0:
+                                            type = this.getFutureOrderEventType(data);
+                                            return [4 /*yield*/, this.parseFutureOrder(data)];
+                                        case 1:
+                                            order = _a.sent();
+                                            return [4 /*yield*/, this.saveCachedOrder(order)];
+                                        case 2:
+                                            _a.sent();
+                                            return [4 /*yield*/, this.updateFeeFromTrades({ orderId: orderId_3 })];
+                                        case 3:
+                                            _a.sent();
+                                            this.onOrder({ type: type, order: this.getCachedOrder(orderId_3) });
+                                            return [2 /*return*/];
+                                    }
+                                });
+                            }); })];
+                    case 1:
+                        _a.sent();
+                        return [3 /*break*/, 5];
+                    case 2:
+                        if (!isBinanceFutureTradeMessage(data)) return [3 /*break*/, 4];
+                        orderId_4 = this.getFutureOrderId(data);
+                        return [4 /*yield*/, this.lock.acquire(orderId_4, function () { return __awaiter(_this, void 0, void 0, function () {
+                                var type, order, trade;
+                                return __generator(this, function (_a) {
+                                    switch (_a.label) {
+                                        case 0:
+                                            type = this.getFutureOrderEventType(data);
+                                            return [4 /*yield*/, this.parseFutureOrder(data)];
+                                        case 1:
+                                            order = _a.sent();
+                                            return [4 /*yield*/, this.saveCachedOrder(order)];
+                                        case 2:
+                                            _a.sent();
+                                            return [4 /*yield*/, this.parseFutureTrade(data)];
+                                        case 3:
+                                            trade = _a.sent();
+                                            return [4 /*yield*/, this.saveCachedTrade({ trade: trade, orderId: orderId_4 })];
+                                        case 4:
+                                            _a.sent();
+                                            return [4 /*yield*/, this.updateFeeFromTrades({ orderId: orderId_4 })];
+                                        case 5:
+                                            _a.sent();
+                                            this.onOrder({ type: type, order: this.getCachedOrder(orderId_4) });
+                                            return [2 /*return*/];
+                                    }
+                                });
+                            }); })];
+                    case 3:
+                        _a.sent();
+                        return [3 /*break*/, 5];
+                    case 4:
+                        if (isBinanceFutureAccountInfoMessage(data)) {
+                            positions = this.parseFuturePositions(data);
+                            if (positions.length) {
+                                this.emit('positions', { update: positions });
                             }
                         }
                         _a.label = 5;
@@ -209,21 +341,40 @@ var binance = /** @class */ (function (_super) {
             });
         }); };
         _this._doAuth = function () { return __awaiter(_this, void 0, void 0, function () {
-            var ccxtInstance, data;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
+            var ccxtInstance, endpoint, _a, futureDataStream, spotDataStream;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
                     case 0: return [4 /*yield*/, this._publicCcxtInstance.loadMarkets()];
                     case 1:
-                        _a.sent();
+                        _b.sent();
                         ccxtInstance = new ccxt_1.default['binance'](__assign({}, this.getCredentials()));
-                        return [4 /*yield*/, ccxtInstance.publicPostUserDataStream()];
-                    case 2:
-                        data = _a.sent();
                         if (!this._keepAliveInterval) {
                             this._keepAliveInterval = setInterval(this._keepAlive, 1000 * 60 * 30);
                         }
-                        this._listenKey = data.listenKey;
-                        this.setUrl("wss://stream.binance.com:9443/ws/" + this._listenKey);
+                        endpoint = undefined;
+                        _a = this._walletType;
+                        switch (_a) {
+                            case 'future': return [3 /*break*/, 2];
+                            case 'spot': return [3 /*break*/, 4];
+                        }
+                        return [3 /*break*/, 6];
+                    case 2: return [4 /*yield*/, ccxtInstance.fapiPrivatePostListenKey()];
+                    case 3:
+                        futureDataStream = _b.sent();
+                        this._listenKey = futureDataStream.listenKey;
+                        endpoint = "wss://fstream.binance.com/stream?streams=" + this._listenKey;
+                        return [3 /*break*/, 6];
+                    case 4: return [4 /*yield*/, ccxtInstance.publicPostUserDataStream()];
+                    case 5:
+                        spotDataStream = _b.sent();
+                        this._listenKey = spotDataStream.listenKey;
+                        endpoint = "wss://stream.binance.com:9443/ws/" + this._listenKey;
+                        return [3 /*break*/, 6];
+                    case 6:
+                        if (!endpoint) {
+                            throw new Error("Market type " + this._walletType + " not supported");
+                        }
+                        this.setUrl(endpoint);
                         return [2 /*return*/];
                 }
             });
@@ -264,17 +415,37 @@ var binance = /** @class */ (function (_super) {
                 });
             });
         };
-        _this.getOrderId = function (message) {
+        _this.cancelOrder = function (_a) {
+            var id = _a.id;
+            return __awaiter(_this, void 0, void 0, function () {
+                var ccxtInstance, order;
+                return __generator(this, function (_b) {
+                    switch (_b.label) {
+                        case 0:
+                            ccxtInstance = new ccxt_1.default['binance'](__assign({}, this.getCredentials()));
+                            order = this.getCachedOrder(id);
+                            return [4 /*yield*/, ccxtInstance.cancelOrder(id, order.symbol)];
+                        case 1:
+                            _b.sent();
+                            return [2 /*return*/];
+                    }
+                });
+            });
+        };
+        _this.createClientId = function () {
+            return _this._random().toString();
+        };
+        _this.getOrderType = function (type) {
+            return type.toLocaleLowerCase();
+        };
+        _this.getSpotOrderId = function (message) {
             var id = message.i.toString();
             if (!id) {
                 throw new Error('Invalid order message from binance.');
             }
             return id;
         };
-        _this.getOrderType = function (type) {
-            return type.toLocaleLowerCase();
-        };
-        _this.parseOrder = function (message) {
+        _this.parseSpotOrder = function (message) {
             var statuses = {
                 NEW: 'open',
                 PARTIALLY_FILLED: 'open',
@@ -284,7 +455,7 @@ var binance = /** @class */ (function (_super) {
                 REJECTED: 'failed',
                 EXPIRED: 'canceled',
             };
-            var id = _this.getOrderId(message);
+            var id = _this.getSpotOrderId(message);
             var originalOrder = _this.getCachedOrder(id);
             var cost = parseFloat(message.Z);
             var filled = parseFloat(message.z);
@@ -311,7 +482,7 @@ var binance = /** @class */ (function (_super) {
             var mergedOrder = R.mergeDeepWith(function (left, right) { return (right === undefined ? left : right); }, originalOrder, order);
             return mergedOrder;
         };
-        _this.parseTrade = function (message) {
+        _this.parseSpotTrade = function (message) {
             var price = parseFloat(message.L);
             var amount = parseFloat(message.l);
             return {
@@ -335,7 +506,7 @@ var binance = /** @class */ (function (_super) {
                 },
             };
         };
-        _this.getOrderEventType = function (message) {
+        _this.getSpotOrderEventType = function (message) {
             var id = Object.keys(message)[0];
             if (!id) {
                 throw new Error('Invalid order message from binance.');
@@ -359,27 +530,7 @@ var binance = /** @class */ (function (_super) {
             }
             return exchange_1.OrderEventType.ORDER_UPDATED;
         };
-        _this.cancelOrder = function (_a) {
-            var id = _a.id;
-            return __awaiter(_this, void 0, void 0, function () {
-                var ccxtInstance, order;
-                return __generator(this, function (_b) {
-                    switch (_b.label) {
-                        case 0:
-                            ccxtInstance = new ccxt_1.default['binance'](__assign({}, this.getCredentials()));
-                            order = this.getCachedOrder(id);
-                            return [4 /*yield*/, ccxtInstance.cancelOrder(id, order.symbol)];
-                        case 1:
-                            _b.sent();
-                            return [2 /*return*/];
-                    }
-                });
-            });
-        };
-        _this.createClientId = function () {
-            return _this._random().toString();
-        };
-        _this.parseBalance = function (message) {
+        _this.parseSpotBalance = function (message) {
             var update = { info: message };
             if (!message.B) {
                 return undefined;
@@ -396,6 +547,131 @@ var binance = /** @class */ (function (_super) {
                 };
             }
             return _this._ccxtInstance['parseBalance'](update);
+        };
+        _this.getFutureOrderId = function (message) {
+            var id = message.o.i.toString();
+            if (!id) {
+                throw new Error('Invalid order message from binance.');
+            }
+            return id;
+        };
+        _this.getFutureOrderEventType = function (message) {
+            var id = message.o && message.o.i ? message.o.i : undefined;
+            if (!id) {
+                throw new Error('Invalid order message from binance.');
+            }
+            var newStatus = message.o.X;
+            var originalOrder = _this.getCachedOrder(id);
+            if (!newStatus) {
+                return exchange_1.OrderEventType.ORDER_UPDATED;
+            }
+            if (!originalOrder) {
+                return exchange_1.OrderEventType.ORDER_CREATED;
+            }
+            if (newStatus === 'FILLED' && originalOrder.status !== 'closed') {
+                return exchange_1.OrderEventType.ORDER_CLOSED;
+            }
+            else if (newStatus === 'CANCELED' && originalOrder.status !== 'canceled') {
+                return exchange_1.OrderEventType.ORDER_CANCELED;
+            }
+            else if (newStatus === 'REJECTED' && originalOrder.status !== 'failed') {
+                return exchange_1.OrderEventType.ORDER_FAILED;
+            }
+            return exchange_1.OrderEventType.ORDER_UPDATED;
+        };
+        _this.parseFutureOrder = function (message) {
+            var statuses = {
+                NEW: 'open',
+                PARTIALLY_FILLED: 'open',
+                FILLED: 'closed',
+                CANCELED: 'canceled',
+                PENDING_CANCEL: 'open',
+                REJECTED: 'failed',
+                EXPIRED: 'canceled',
+                REPLACED: 'open',
+                STOPPED: 'canceled',
+                NEW_INSURANCE: 'open',
+                NEW_ADL: 'open',
+            };
+            var rawOrder = message.o;
+            var id = _this.getFutureOrderId(message);
+            var originalOrder = _this.getCachedOrder(id);
+            var average = parseFloat(rawOrder.ap);
+            var amount = parseFloat(rawOrder.q);
+            var originalPrice = parseFloat(rawOrder.p);
+            var lastFilledPrice = parseFloat(rawOrder.L);
+            var filled = parseFloat(rawOrder.l);
+            var cost = lastFilledPrice * amount;
+            var order = {
+                info: message,
+                symbol: _this._publicCcxtInstance.markets_by_id[rawOrder.s]
+                    ? _this._publicCcxtInstance.markets_by_id[rawOrder.s].symbol
+                    : rawOrder.s,
+                status: statuses[rawOrder.X],
+                price: cost && filled ? cost / filled : originalPrice,
+                average: average,
+                amount: amount,
+                remaining: amount - filled,
+                cost: cost,
+                datetime: moment_1.default(message.T).toISOString(),
+                timestamp: message.T,
+                filled: filled,
+                side: rawOrder.S === 'BUY' ? 'buy' : 'sell',
+                trades: [],
+                type: _this.getOrderType(rawOrder.o),
+                clientId: rawOrder.c ? rawOrder.c : undefined,
+                id: id,
+            };
+            var mergedOrder = R.mergeDeepWith(function (left, right) { return (right === undefined ? left : right); }, originalOrder, order);
+            return mergedOrder;
+        };
+        _this.parseFutureTrade = function (message) {
+            var rawTrade = message.o;
+            var price = parseFloat(rawTrade.L);
+            var amount = parseFloat(rawTrade.l);
+            return {
+                info: message,
+                timestamp: message.T,
+                datetime: moment_1.default(message.T).toISOString(),
+                symbol: _this._publicCcxtInstance.markets_by_id[rawTrade.s]
+                    ? _this._publicCcxtInstance.markets_by_id[rawTrade.s].symbol
+                    : rawTrade.s,
+                id: rawTrade.t.toString(),
+                order: rawTrade.i.toString(),
+                type: _this.getOrderType(rawTrade.o),
+                takerOrMaker: rawTrade.m ? 'maker' : 'taker',
+                side: rawTrade.S === 'BUY' ? 'buy' : 'sell',
+                price: price,
+                amount: amount,
+                cost: price * amount,
+                fee: {
+                    cost: rawTrade.n ? parseFloat(rawTrade.n) : 0,
+                    currency: _this._publicCcxtInstance.safeCurrencyCode(rawTrade.N),
+                },
+            };
+        };
+        _this.parseFuturePositions = function (message) {
+            var update = [];
+            for (var _i = 0, _a = message.a.P; _i < _a.length; _i++) {
+                var rawPosition = _a[_i];
+                var amount = parseFloat(rawPosition.pa);
+                var unrealizedPnL = parseFloat(rawPosition.up);
+                var entryPrice = parseFloat(rawPosition.ep);
+                var markPrice = 0;
+                if (amount !== 0) {
+                    markPrice = amount > 0 ? unrealizedPnL / amount + entryPrice : unrealizedPnL / amount - entryPrice;
+                }
+                update.push({
+                    info: rawPosition,
+                    symbol: _this._publicCcxtInstance.markets_by_id[rawPosition.s]
+                        ? _this._publicCcxtInstance.markets_by_id[rawPosition.s].symbol
+                        : rawPosition.s,
+                    amount: amount,
+                    entryPrice: entryPrice,
+                    markPrice: markPrice,
+                });
+            }
+            return update;
         };
         _this.subscriptionKeyMapping = {};
         _this._publicCcxtInstance = new ccxt_1.default['binance']();

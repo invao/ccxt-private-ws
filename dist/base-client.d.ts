@@ -49,6 +49,7 @@ export declare abstract class BaseClient extends EventEmitter implements Exchang
     getName: () => ExchangeName;
     subscribeOrders: () => void;
     subscribeBalances: () => void;
+    subscribePositions: () => void;
     protected send: (message: string) => void;
     protected getCredentials: () => import("./exchange").StaticExchangeCredentials;
     protected assertConnected: () => Promise<void>;
