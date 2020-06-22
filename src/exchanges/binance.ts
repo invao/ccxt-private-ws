@@ -677,6 +677,10 @@ export class binance extends BaseClient {
       const amount = parseFloat(rawPosition.pa);
       const unrealizedPnL = parseFloat(rawPosition.up);
       const entryPrice = parseFloat(rawPosition.ep);
+      const side = rawPosition.ps.toLowerCase();
+      const symbol = this._publicCcxtInstance.markets_by_id[rawPosition.s]
+        ? this._publicCcxtInstance.markets_by_id[rawPosition.s].symbol
+        : rawPosition.s;
 
       let markPrice = 0;
       if (amount !== 0) {
@@ -685,12 +689,11 @@ export class binance extends BaseClient {
 
       update.push({
         info: rawPosition,
-        symbol: this._publicCcxtInstance.markets_by_id[rawPosition.s]
-          ? this._publicCcxtInstance.markets_by_id[rawPosition.s].symbol
-          : rawPosition.s,
+        symbol,
         amount,
         entryPrice,
         markPrice,
+        side,
       });
     }
 

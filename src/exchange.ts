@@ -83,6 +83,7 @@ export type Position = {
   amount: number;
   markPrice: number;
   entryPrice: number;
+  side: string;
   info: any;
 };
 

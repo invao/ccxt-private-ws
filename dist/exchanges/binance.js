@@ -657,18 +657,21 @@ var binance = /** @class */ (function (_super) {
                 var amount = parseFloat(rawPosition.pa);
                 var unrealizedPnL = parseFloat(rawPosition.up);
                 var entryPrice = parseFloat(rawPosition.ep);
+                var side = rawPosition.ps.toLowerCase();
+                var symbol = _this._publicCcxtInstance.markets_by_id[rawPosition.s]
+                    ? _this._publicCcxtInstance.markets_by_id[rawPosition.s].symbol
+                    : rawPosition.s;
                 var markPrice = 0;
                 if (amount !== 0) {
                     markPrice = amount > 0 ? unrealizedPnL / amount + entryPrice : unrealizedPnL / amount - entryPrice;
                 }
                 update.push({
                     info: rawPosition,
-                    symbol: _this._publicCcxtInstance.markets_by_id[rawPosition.s]
-                        ? _this._publicCcxtInstance.markets_by_id[rawPosition.s].symbol
-                        : rawPosition.s,
+                    symbol: symbol,
                     amount: amount,
                     entryPrice: entryPrice,
                     markPrice: markPrice,
+                    side: side,
                 });
             }
             return update;

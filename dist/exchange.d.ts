@@ -75,6 +75,7 @@ export declare type Position = {
     amount: number;
     markPrice: number;
     entryPrice: number;
+    side: string;
     info: any;
 };
 export declare type PositionUpdate = Position[];
