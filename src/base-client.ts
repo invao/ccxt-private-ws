@@ -196,6 +196,23 @@ export abstract class BaseClient extends EventEmitter implements Exchange {
     }
   };
 
+  public subscribePositions = () => {
+    if (!this.subscriptionKeyMapping['positions']) {
+      return;
+    }
+
+    const filters =
+      typeof this.subscriptionKeyMapping['positions'] === 'string'
+        ? [this.subscriptionKeyMapping['positions']]
+        : this.subscriptionKeyMapping['positions'];
+
+    this._subscribeFilter = R.uniq([...this._subscribeFilter, ...filters]);
+
+    if (this._ws) {
+      this._ws.reconnect();
+    }
+  };
+
   protected send = (message: string) => {
     this.debug(`Sending message to ${this.getName()}: ${message}`);
     if (this._ws) {

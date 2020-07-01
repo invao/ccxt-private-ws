@@ -1,4 +1,4 @@
-import ccxt from 'ccxt';
+import ccxt, { Dictionary } from 'ccxt';
 
 import { ExchangeName } from '.';
 
@@ -36,11 +36,12 @@ export type Order = {
   cost: number;
   filled: number;
   remaining: number;
+  average?: number;
   status: OrderStatus;
   fee?: {
     cost: number;
     currency: string;
-  };
+  }
   trades?: Trade[];
   clientId?: string;
   info?: any;
@@ -72,9 +73,23 @@ export type OrderInput = {
 
 export type OrderListener = (event: OrderEvent) => void;
 export type BalanceListener = (event: BalanceEvent) => void;
+export type PositionsListener = (event: PositionEvent) => void;
 export type ConnectListener = () => void;
 
 export type BalanceUpdate = ccxt.Balances;
+
+export type Position = {
+  symbol: string;
+  amount: number;
+  markPrice: number;
+  entryPrice: number;
+  side: string;
+  info: any;
+};
+
+export type PositionUpdate = Position[];
+
+export type PositionEvent = { update: PositionUpdate };
 
 export type WalletType = 'spot' | 'margin' | 'future';
 
@@ -106,6 +121,7 @@ export interface Exchange {
   on(event: 'balance', listener: BalanceListener): void;
   on(event: 'fullBalance', listener: BalanceListener): void;
   on(event: 'connect', listener: ConnectListener): void;
+  on(event: 'positions', listener: PositionsListener): void;
 
   createOrder?({ order }: { order: OrderInput }): Promise<void>;
   cancelOrder?({ id }: { id: string }): Promise<void>;
@@ -113,6 +129,7 @@ export interface Exchange {
 
   subscribeOrders(): void;
   subscribeBalances(): void;
+  subscribePositions(): void;
 
   connect(): Promise<void>;
   disconnect(): Promise<void>;

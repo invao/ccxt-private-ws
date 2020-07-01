@@ -229,9 +229,9 @@ capture-stack-trace@^1.0.0:
   integrity sha512-mYQLZnx5Qt1JgB1WEiMCf2647plpGeQ2NMR/5L0HNZzGQo4fuSPnK+wjfPnKZV0aiJDgzmWqqkV/g7JD+DW0qw==
 
 ccxt@^1.29.75:
-  version "1.29.75"
-  resolved "https://registry.yarnpkg.com/ccxt/-/ccxt-1.29.75.tgz#0d0b0a2cb9c283ce75ada3cfe1b0d0df744a063d"
-  integrity sha512-PcgJxlu55POpKzYxAP35AIb7Hi7JvRTz7TqB5pl/dxxWM8UOj9U++z0QkjI9+zVwuTO5hda43lFGW44HLA5xAg==
+  version "1.30.31"
+  resolved "https://registry.yarnpkg.com/ccxt/-/ccxt-1.30.31.tgz#331856f1faa705e00a6ea3ecec345af6c56628ae"
+  integrity sha512-+DXcjOPbapLCay35nor/I4Z0sbBRQDOTLnZjMJdMt5dpNFG4UWthLwuCib792dwQWeuKbIy+UUJVvjO05n5Hqw==
 
 chalk@^2.0.1:
   version "2.4.2"
