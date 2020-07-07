@@ -4,8 +4,15 @@ import moment from 'moment';
 
 import { BaseClient } from '../base-client';
 import {
-  BalanceUpdate, ExchangeConstructorOptionalParameters, Order, OrderEventType, OrderExecutionType,
-  OrderInput, Trade, WalletType
+  BalanceUpdate,
+  ExchangeConstructorOptionalParameters,
+  Order,
+  OrderEventType,
+  OrderExecutionType,
+  OrderInput,
+  PositionUpdate,
+  Trade,
+  WalletType,
 } from '../exchange';
 
 type BitfinexConstructorParams = {
@@ -35,11 +42,23 @@ enum BitfinexWalletUpdateMessageCommands {
   WALLET_UPDATED = 'wu',
 }
 
+enum BitfinexPositionMessageCommands {
+  POSITION_SNAPSHOT = 'ps',
+}
+
+enum BitfinexPositionUpdateMessageCommands {
+  POSITION_NEW = 'pn',
+  POSITION_UPDATE = 'pu',
+  POSITION_CLOSE = 'pc',
+}
+
 type BitfinexMessage =
   | BitfinexOrderMessage
   | BitfinexTradeMessage
   | BitfinexWalletMessage
-  | BitfinexWalletUpdateMessage;
+  | BitfinexWalletUpdateMessage
+  | BitfinexPositionMessage
+  | BitfinexPositionUpdateMessage;
 type BitfinexOrderMessage = [0, BitfinexOrderMessageCommands, BitfinexOrderMessageContent];
 type BitfinexTradeMessage = [0, BitfinexTradeMessageCommands, BitfinexTradeMessageContent];
 type BitfinexWalletMessage = [0, BitfinexWalletMessageCommands, BitfinexWalletMessageContent];
@@ -47,6 +66,35 @@ type BitfinexWalletUpdateMessage = [
   0,
   BitfinexWalletUpdateMessageCommands,
   BitfinexWalletUpdateMessageContent
+];
+type BitfinexPositionMessage = [0, BitfinexPositionMessageCommands, BitfinexPositionMessageContent];
+type BitfinexPositionUpdateMessage = [
+  0,
+  BitfinexPositionUpdateMessageCommands,
+  BitfinexPositionMessageContent
+];
+
+type BitfinexPositionMessageContent = [
+  string, // SYMBOL 0
+  string, // STATUS 1
+  number, // AMOUNT 2
+  number, // BASE_PRICE 3
+  number, // MARGIN_FUNDING 4
+  number, // MARGIN_FUNDING_TYPE 5
+  number, // PL 6
+  number, // PL_PERC 7
+  number, // PRICE_LIQ 8
+  number, // LEVERAGE 9
+  number, // FLAG 10
+  number, // POSITION_ID 11
+  number, // MTS_CREATE 12
+  number, // MTS_UPDATE 13
+  null, // PLACEHOLDER 14
+  number, // TYPE 15
+  null, // PLACEHOLDER 16
+  number, // COLLATERAL 17
+  number, // COLLATERAL_MIN 18
+  any // META 19
 ];
 
 type BitfinexOrderMessageContent = [
@@ -58,7 +106,6 @@ type BitfinexOrderMessageContent = [
   number, // MTS_UPDATE 5
   number, // AMOUNT 6
   number, // AMOUNT_ORIG 7
-
   (
     | 'LIMIT'
     | 'MARKET'
@@ -142,17 +189,16 @@ const isBitfinexWalletUpdateMessage = (message: BitfinexMessage): message is Bit
   );
 };
 
-const balanceWalletType = (wallet?: string): WalletType | undefined => {
-  switch (wallet) {
-    case 'margin':
-      return 'margin';
-    case null:
-    case undefined:
-    case 'exchange':
-      return 'spot';
-    default:
-      return undefined;
-  }
+const isBitfinexPositionMessage = (message: BitfinexMessage): message is BitfinexPositionMessage => {
+  return Object.values(BitfinexPositionMessageCommands).includes((message as BitfinexPositionMessage)[1]);
+};
+
+const isBitfinexPositionUpdateMessage = (
+  message: BitfinexMessage
+): message is BitfinexPositionUpdateMessage => {
+  return Object.values(BitfinexPositionUpdateMessageCommands).includes(
+    (message as BitfinexPositionUpdateMessage)[1]
+  );
 };
 
 export class bitfinex extends BaseClient {
@@ -167,8 +213,8 @@ export class bitfinex extends BaseClient {
     const balanceTypes = {
       spot: 'wallet',
       margin: 'wallet',
-      future: 'wallet'
-    }
+      future: 'wallet',
+    };
 
     this.subscriptionKeyMapping = {
       orders: 'trading',
@@ -207,14 +253,22 @@ export class bitfinex extends BaseClient {
   protected onMessage = async (event: MessageEvent) => {
     const data: BitfinexMessage = JSON.parse(event.data);
 
-    if (isBitfinexOrderMessage(data) && this._walletType === 'spot') {
+    if (isBitfinexOrderMessage(data)) {
       const order = this.parseOrder(data[2]);
+      if (!this.isOrderMatchingWalletType(order)) {
+        return;
+      }
+
       const type = this.parseOrderEventType(data[1]);
       await this.saveCachedOrder(order);
       await this.updateFeeFromTrades({ orderId: order.id });
       this.onOrder({ type, order: this.getCachedOrder(order.id) });
-    } else if (isBitfinexTradeMessage(data) && this._walletType === 'spot') {
+    } else if (isBitfinexTradeMessage(data)) {
       const trade = this.parseTrade(data[2]);
+      if (!this.isTradeMatchingWalletType(trade)) {
+        return;
+      }
+
       const order = await this.saveCachedTrade({ trade, orderId: data[2][3] });
       await this.updateFeeFromTrades({ orderId: order.id });
       this.onOrder({ type: OrderEventType.ORDER_UPDATED, order: this.getCachedOrder(order.id) });
@@ -229,6 +283,18 @@ export class bitfinex extends BaseClient {
       const balance = this.parseBalance(data[2]);
       if (balance) {
         this.emit('balance', { update: balance });
+      }
+    } else if (isBitfinexPositionMessage(data) && this._walletType !== 'spot') {
+      const positions = this.parsePositions(data[2]);
+
+      if (positions.length) {
+        this.emit('positions', { update: positions });
+      }
+    } else if (isBitfinexPositionUpdateMessage(data) && this._walletType !== 'spot') {
+      const positions = this.parsePositions([data[2]]);
+
+      if (positions.length) {
+        this.emit('positions', { update: positions });
       }
     }
   };
@@ -361,11 +427,11 @@ export class bitfinex extends BaseClient {
   };
 
   private parseBalance = (message: BitfinexWalletUpdateMessageContent): BalanceUpdate | undefined => {
-    if (this._walletType !== balanceWalletType(message[0])) {
+    const currency = this._ccxtInstance['safeCurrencyCode'](message[1]);
+    if (!this.isBalanceMatchingWalletType(message[0], currency)) {
       return undefined;
     }
 
-    const currency = this._ccxtInstance['safeCurrencyCode'](message[1]);
     if (message[4] === null) {
       this.send(JSON.stringify([0, 'calc', null, [[`wallet_funding_${currency}`]]]));
       return undefined;
@@ -380,5 +446,89 @@ export class bitfinex extends BaseClient {
       [currency]: { free: free.toNumber(), total: total.toNumber(), used: used.toNumber() },
       info: message as any,
     });
+  };
+
+  private parsePositions = (info: BitfinexPositionMessageContent[]): PositionUpdate => {
+    //  0 = Margin position, 1 = Derivatives position
+    const positionType = this._walletType === 'margin' ? 0 : 1;
+
+    const positions: PositionUpdate = info
+      .filter((info: any) => {
+        return info[15] === positionType && info[1] === 'ACTIVE';
+      })
+      .map((info: any) => {
+        const symbol = this._ccxtInstance.marketsById[info[0]].symbol;
+
+        // info[2]: Size of the position. A positive value indicates a long position;
+        // a negative value indicates a short position.
+        const amount = new Decimal(info[2]).toNumber();
+        // info[3]: Base price of the position. (Average traded price of the previous orders of the position)
+        const entryPrice = new Decimal(info[3]).toNumber();
+        // info[6]: Profit & Loss
+        const unrealizedPnl = new Decimal(info[6]).toNumber();
+        const side = amount >= 0 ? 'long' : 'short';
+
+        let markPrice = 0;
+        if (amount !== 0) {
+          markPrice =
+            amount > 0
+              ? new Decimal(unrealizedPnl).div(amount).plus(entryPrice).toNumber()
+              : new Decimal(unrealizedPnl).div(amount).minus(entryPrice).toNumber();
+        }
+
+        return {
+          entryPrice,
+          markPrice,
+          symbol,
+          amount,
+          side,
+          info,
+        };
+      });
+
+    return positions;
+  };
+
+  private isFutureSymbol = (symbol: string) => {
+    const [base, quote] = symbol.split('/');
+    return this.isFutureCurrency(base) && this.isFutureCurrency(quote);
+  };
+
+  private isFutureCurrency = (asset: string) => {
+    return asset.endsWith('0');
+  };
+
+  private isBalanceMatchingWalletType = (balanceWallet: string, balanceCurrency: string) => {
+    switch (this._walletType) {
+      case 'future':
+        return balanceWallet === 'margin' && this.isFutureCurrency(balanceCurrency);
+      case 'margin':
+        return balanceWallet === 'margin' && !this.isFutureCurrency(balanceCurrency);
+      case 'spot':
+      default:
+        return balanceWallet === 'exchange';
+    }
+  };
+
+  private isOrderMatchingWalletType = (order: Order) => {
+    switch (this._walletType) {
+      case 'future':
+        return this.isFutureSymbol(order.symbol);
+      case 'margin':
+        return !this.isFutureSymbol(order.symbol) && !order.info[8].toLowerCase().startsWith('exchange');
+      default:
+        return !this.isFutureSymbol(order.symbol) && order.info[8].toLowerCase().startsWith('exchange');
+    }
+  };
+
+  private isTradeMatchingWalletType = (trade: Trade) => {
+    switch (this._walletType) {
+      case 'future':
+        return this.isFutureSymbol(trade.symbol);
+      case 'margin':
+        return !this.isFutureSymbol(trade.symbol) && !trade.info[6].toLowerCase().startsWith('exchange');
+      default:
+        return !this.isFutureSymbol(trade.symbol) && trade.info[6].toLowerCase().startsWith('exchange');
+    }
   };
 }

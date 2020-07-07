@@ -87,6 +87,16 @@ var BitfinexWalletUpdateMessageCommands;
 (function (BitfinexWalletUpdateMessageCommands) {
     BitfinexWalletUpdateMessageCommands["WALLET_UPDATED"] = "wu";
 })(BitfinexWalletUpdateMessageCommands || (BitfinexWalletUpdateMessageCommands = {}));
+var BitfinexPositionMessageCommands;
+(function (BitfinexPositionMessageCommands) {
+    BitfinexPositionMessageCommands["POSITION_SNAPSHOT"] = "ps";
+})(BitfinexPositionMessageCommands || (BitfinexPositionMessageCommands = {}));
+var BitfinexPositionUpdateMessageCommands;
+(function (BitfinexPositionUpdateMessageCommands) {
+    BitfinexPositionUpdateMessageCommands["POSITION_NEW"] = "pn";
+    BitfinexPositionUpdateMessageCommands["POSITION_UPDATE"] = "pu";
+    BitfinexPositionUpdateMessageCommands["POSITION_CLOSE"] = "pc";
+})(BitfinexPositionUpdateMessageCommands || (BitfinexPositionUpdateMessageCommands = {}));
 var isBitfinexOrderMessage = function (message) {
     return Object.values(BitfinexOrderMessageCommands).includes(message[1]);
 };
@@ -99,17 +109,11 @@ var isBitfinexWalletMessage = function (message) {
 var isBitfinexWalletUpdateMessage = function (message) {
     return Object.values(BitfinexWalletUpdateMessageCommands).includes(message[1]);
 };
-var balanceWalletType = function (wallet) {
-    switch (wallet) {
-        case 'margin':
-            return 'margin';
-        case null:
-        case undefined:
-        case 'exchange':
-            return 'spot';
-        default:
-            return undefined;
-    }
+var isBitfinexPositionMessage = function (message) {
+    return Object.values(BitfinexPositionMessageCommands).includes(message[1]);
+};
+var isBitfinexPositionUpdateMessage = function (message) {
+    return Object.values(BitfinexPositionUpdateMessageCommands).includes(message[1]);
 };
 var bitfinex = /** @class */ (function (_super) {
     __extends(bitfinex, _super);
@@ -158,13 +162,16 @@ var bitfinex = /** @class */ (function (_super) {
             });
         };
         _this.onMessage = function (event) { return __awaiter(_this, void 0, void 0, function () {
-            var data, order, type, trade, order, _i, _a, message, balance, balance;
+            var data, order, type, trade, order, _i, _a, message, balance, balance, positions, positions;
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
                         data = JSON.parse(event.data);
-                        if (!(isBitfinexOrderMessage(data) && this._walletType === 'spot')) return [3 /*break*/, 3];
+                        if (!isBitfinexOrderMessage(data)) return [3 /*break*/, 3];
                         order = this.parseOrder(data[2]);
+                        if (!this.isOrderMatchingWalletType(order)) {
+                            return [2 /*return*/];
+                        }
                         type = this.parseOrderEventType(data[1]);
                         return [4 /*yield*/, this.saveCachedOrder(order)];
                     case 1:
@@ -175,8 +182,11 @@ var bitfinex = /** @class */ (function (_super) {
                         this.onOrder({ type: type, order: this.getCachedOrder(order.id) });
                         return [3 /*break*/, 7];
                     case 3:
-                        if (!(isBitfinexTradeMessage(data) && this._walletType === 'spot')) return [3 /*break*/, 6];
+                        if (!isBitfinexTradeMessage(data)) return [3 /*break*/, 6];
                         trade = this.parseTrade(data[2]);
+                        if (!this.isTradeMatchingWalletType(trade)) {
+                            return [2 /*return*/];
+                        }
                         return [4 /*yield*/, this.saveCachedTrade({ trade: trade, orderId: data[2][3] })];
                     case 4:
                         order = _b.sent();
@@ -199,6 +209,18 @@ var bitfinex = /** @class */ (function (_super) {
                             balance = this.parseBalance(data[2]);
                             if (balance) {
                                 this.emit('balance', { update: balance });
+                            }
+                        }
+                        else if (isBitfinexPositionMessage(data) && this._walletType !== 'spot') {
+                            positions = this.parsePositions(data[2]);
+                            if (positions.length) {
+                                this.emit('positions', { update: positions });
+                            }
+                        }
+                        else if (isBitfinexPositionUpdateMessage(data) && this._walletType !== 'spot') {
+                            positions = this.parsePositions([data[2]]);
+                            if (positions.length) {
+                                this.emit('positions', { update: positions });
                             }
                         }
                         _b.label = 7;
@@ -322,10 +344,10 @@ var bitfinex = /** @class */ (function (_super) {
         };
         _this.parseBalance = function (message) {
             var _a;
-            if (_this._walletType !== balanceWalletType(message[0])) {
+            var currency = _this._ccxtInstance['safeCurrencyCode'](message[1]);
+            if (!_this.isBalanceMatchingWalletType(message[0], currency)) {
                 return undefined;
             }
-            var currency = _this._ccxtInstance['safeCurrencyCode'](message[1]);
             if (message[4] === null) {
                 _this.send(JSON.stringify([0, 'calc', null, [["wallet_funding_" + currency]]]));
                 return undefined;
@@ -338,11 +360,84 @@ var bitfinex = /** @class */ (function (_super) {
                 _a.info = message,
                 _a));
         };
+        _this.parsePositions = function (info) {
+            //  0 = Margin position, 1 = Derivatives position
+            var positionType = _this._walletType === 'margin' ? 0 : 1;
+            var positions = info
+                .filter(function (info) {
+                return info[15] === positionType && info[1] === 'ACTIVE';
+            })
+                .map(function (info) {
+                var symbol = _this._ccxtInstance.marketsById[info[0]].symbol;
+                // info[2]: Size of the position. A positive value indicates a long position;
+                // a negative value indicates a short position.
+                var amount = new decimal_js_1.default(info[2]).toNumber();
+                // info[3]: Base price of the position. (Average traded price of the previous orders of the position)
+                var entryPrice = new decimal_js_1.default(info[3]).toNumber();
+                // info[6]: Profit & Loss
+                var unrealizedPnl = new decimal_js_1.default(info[6]).toNumber();
+                var side = amount >= 0 ? 'long' : 'short';
+                var markPrice = 0;
+                if (amount !== 0) {
+                    markPrice =
+                        amount > 0
+                            ? new decimal_js_1.default(unrealizedPnl).div(amount).plus(entryPrice).toNumber()
+                            : new decimal_js_1.default(unrealizedPnl).div(amount).minus(entryPrice).toNumber();
+                }
+                return {
+                    entryPrice: entryPrice,
+                    markPrice: markPrice,
+                    symbol: symbol,
+                    amount: amount,
+                    side: side,
+                    info: info,
+                };
+            });
+            return positions;
+        };
+        _this.isFutureSymbol = function (symbol) {
+            var _a = symbol.split('/'), base = _a[0], quote = _a[1];
+            return _this.isFutureCurrency(base) && _this.isFutureCurrency(quote);
+        };
+        _this.isFutureCurrency = function (asset) {
+            return asset.endsWith('0');
+        };
+        _this.isBalanceMatchingWalletType = function (balanceWallet, balanceCurrency) {
+            switch (_this._walletType) {
+                case 'future':
+                    return balanceWallet === 'margin' && _this.isFutureCurrency(balanceCurrency);
+                case 'margin':
+                    return balanceWallet === 'margin' && !_this.isFutureCurrency(balanceCurrency);
+                case 'spot':
+                default:
+                    return balanceWallet === 'exchange';
+            }
+        };
+        _this.isOrderMatchingWalletType = function (order) {
+            switch (_this._walletType) {
+                case 'future':
+                    return _this.isFutureSymbol(order.symbol);
+                case 'margin':
+                    return !_this.isFutureSymbol(order.symbol) && !order.info[8].toLowerCase().startsWith('exchange');
+                default:
+                    return !_this.isFutureSymbol(order.symbol) && order.info[8].toLowerCase().startsWith('exchange');
+            }
+        };
+        _this.isTradeMatchingWalletType = function (trade) {
+            switch (_this._walletType) {
+                case 'future':
+                    return _this.isFutureSymbol(trade.symbol);
+                case 'margin':
+                    return !_this.isFutureSymbol(trade.symbol) && !trade.info[6].toLowerCase().startsWith('exchange');
+                default:
+                    return !_this.isFutureSymbol(trade.symbol) && trade.info[6].toLowerCase().startsWith('exchange');
+            }
+        };
         _this._walletType = _this._walletType || 'spot';
         var balanceTypes = {
             spot: 'wallet',
             margin: 'wallet',
-            future: 'wallet'
+            future: 'wallet',
         };
         _this.subscriptionKeyMapping = {
             orders: 'trading',
