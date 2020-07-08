@@ -311,9 +311,7 @@ var bitfinex = /** @class */ (function (_super) {
                 datetime: moment_1.default(timestamp).toISOString(),
                 order: data[3],
                 side: data[4] > 0 ? 'buy' : 'sell',
-                symbol: _this._ccxtInstance.marketsById[symbol]
-                    ? _this._ccxtInstance.marketsById[symbol].symbol
-                    : symbol,
+                symbol: _this._ccxtInstance.marketsById[symbol] ? _this._ccxtInstance.marketsById[symbol].symbol : symbol,
                 type: _this.getOrderType(data[6]),
             };
             return trade;
@@ -373,11 +371,11 @@ var bitfinex = /** @class */ (function (_super) {
                     : info[0];
                 // info[2]: Size of the position. A positive value indicates a long position;
                 // a negative value indicates a short position.
-                var amount = new decimal_js_1.default(info[2]).toNumber();
+                var amount = new decimal_js_1.default(info[2] || 0).toNumber();
                 // info[3]: Base price of the position. (Average traded price of the previous orders of the position)
-                var entryPrice = new decimal_js_1.default(info[3]).toNumber();
+                var entryPrice = new decimal_js_1.default(info[3] || 0).toNumber();
                 // info[6]: Profit & Loss
-                var unrealizedPnl = new decimal_js_1.default(info[6]).toNumber();
+                var unrealizedPnl = new decimal_js_1.default(info[6] || 0).toNumber();
                 var side = amount >= 0 ? 'long' : 'short';
                 var markPrice = amount !== 0
                     ? new decimal_js_1.default(entryPrice).plus(new decimal_js_1.default(unrealizedPnl).div(amount).toString()).toNumber()

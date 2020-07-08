@@ -392,9 +392,7 @@ export class bitfinex extends BaseClient {
       datetime: moment(timestamp).toISOString(),
       order: data[3],
       side: data[4] > 0 ? 'buy' : 'sell',
-      symbol: this._ccxtInstance.marketsById[symbol]
-        ? this._ccxtInstance.marketsById[symbol].symbol
-        : symbol,
+      symbol: this._ccxtInstance.marketsById[symbol] ? this._ccxtInstance.marketsById[symbol].symbol : symbol,
       type: this.getOrderType(data[6]),
     };
 
@@ -463,11 +461,11 @@ export class bitfinex extends BaseClient {
 
         // info[2]: Size of the position. A positive value indicates a long position;
         // a negative value indicates a short position.
-        const amount = new Decimal(info[2]).toNumber();
+        const amount = new Decimal(info[2] || 0).toNumber();
         // info[3]: Base price of the position. (Average traded price of the previous orders of the position)
-        const entryPrice = new Decimal(info[3]).toNumber();
+        const entryPrice = new Decimal(info[3] || 0).toNumber();
         // info[6]: Profit & Loss
-        const unrealizedPnl = new Decimal(info[6]).toNumber();
+        const unrealizedPnl = new Decimal(info[6] || 0).toNumber();
         const side = amount >= 0 ? 'long' : 'short';
         const markPrice =
           amount !== 0
