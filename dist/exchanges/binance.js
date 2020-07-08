@@ -71,6 +71,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 var ccxt_1 = __importDefault(require("ccxt"));
+var decimal_js_1 = __importDefault(require("decimal.js"));
 var moment_1 = __importDefault(require("moment"));
 var R = __importStar(require("ramda"));
 var base_client_1 = require("../base-client");
@@ -658,10 +659,9 @@ var binance = /** @class */ (function (_super) {
                 var symbol = _this._publicCcxtInstance.markets_by_id[rawPosition.s]
                     ? _this._publicCcxtInstance.markets_by_id[rawPosition.s].symbol
                     : rawPosition.s;
-                var markPrice = 0;
-                if (amount !== 0) {
-                    markPrice = amount > 0 ? unrealizedPnL / amount + entryPrice : unrealizedPnL / amount - entryPrice;
-                }
+                var markPrice = amount !== 0
+                    ? new decimal_js_1.default(entryPrice).plus(new decimal_js_1.default(unrealizedPnL).div(amount).toString()).toNumber()
+                    : 0;
                 update.push({
                     info: rawPosition,
                     symbol: symbol,

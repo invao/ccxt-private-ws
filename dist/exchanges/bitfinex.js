@@ -377,13 +377,9 @@ var bitfinex = /** @class */ (function (_super) {
                 // info[6]: Profit & Loss
                 var unrealizedPnl = new decimal_js_1.default(info[6]).toNumber();
                 var side = amount >= 0 ? 'long' : 'short';
-                var markPrice = 0;
-                if (amount !== 0) {
-                    markPrice =
-                        amount > 0
-                            ? new decimal_js_1.default(unrealizedPnl).div(amount).plus(entryPrice).toNumber()
-                            : new decimal_js_1.default(unrealizedPnl).div(amount).minus(entryPrice).toNumber();
-                }
+                var markPrice = amount !== 0
+                    ? new decimal_js_1.default(entryPrice).plus(new decimal_js_1.default(unrealizedPnl).div(amount).toString()).toNumber()
+                    : 0;
                 return {
                     entryPrice: entryPrice,
                     markPrice: markPrice,

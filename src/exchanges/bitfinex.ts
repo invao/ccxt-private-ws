@@ -467,14 +467,10 @@ export class bitfinex extends BaseClient {
         // info[6]: Profit & Loss
         const unrealizedPnl = new Decimal(info[6]).toNumber();
         const side = amount >= 0 ? 'long' : 'short';
-
-        let markPrice = 0;
-        if (amount !== 0) {
-          markPrice =
-            amount > 0
-              ? new Decimal(unrealizedPnl).div(amount).plus(entryPrice).toNumber()
-              : new Decimal(unrealizedPnl).div(amount).minus(entryPrice).toNumber();
-        }
+        const markPrice =
+          amount !== 0
+            ? new Decimal(entryPrice).plus(new Decimal(unrealizedPnl).div(amount).toString()).toNumber()
+            : 0;
 
         return {
           entryPrice,
