@@ -407,10 +407,11 @@ var BaseClient = /** @class */ (function (_super) {
         _this._credentials = params.credentials;
         _this._random = unique_random_1.default(0, Math.pow(2, 31));
         _this._debug = params.debug ? true : false;
-        if (!ccxtInstance[_this._name]) {
-            ccxtInstance[_this._name] = new (__assign({}, ccxt_1.default)[_this._name])();
+        var exchangeType = params.exchangeType || params.name;
+        if (!ccxtInstance[exchangeType]) {
+            ccxtInstance[exchangeType] = new (__assign({}, ccxt_1.default)[exchangeType])();
         }
-        _this._ccxtInstance = ccxtInstance[_this._name];
+        _this._ccxtInstance = ccxtInstance[exchangeType];
         _this._subscribeFilter = [];
         _this.subscriptionKeyMapping = {};
         _this._orders = {};

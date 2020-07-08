@@ -1,6 +1,6 @@
 import ccxt, { Dictionary } from 'ccxt';
 
-import { ExchangeName } from '.';
+import { ExchangeName, ExchangeType } from '.';
 
 export type Trade = {
   info: any;
@@ -95,6 +95,7 @@ export type WalletType = 'spot' | 'margin' | 'future';
 
 export type ExchangeConstructorParameters = {
   name: ExchangeName;
+  exchangeType?: ExchangeType;
   url: string;
   credentials: ExchangeCredentials;
 };

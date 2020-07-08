@@ -118,7 +118,7 @@ var isBitfinexPositionUpdateMessage = function (message) {
 var bitfinex = /** @class */ (function (_super) {
     __extends(bitfinex, _super);
     function bitfinex(params) {
-        var _this = _super.call(this, __assign(__assign({}, params), { url: 'wss://api.bitfinex.com/ws/2', name: 'bitfinex' })) || this;
+        var _this = _super.call(this, __assign(__assign({}, params), { url: 'wss://api.bitfinex.com/ws/2', name: 'bitfinex', exchangeType: 'bitfinex2' })) || this;
         _this._orderTypeMap = {
             limit: 'EXCHANGE LIMIT',
         };
@@ -311,8 +311,8 @@ var bitfinex = /** @class */ (function (_super) {
                 datetime: moment_1.default(timestamp).toISOString(),
                 order: data[3],
                 side: data[4] > 0 ? 'buy' : 'sell',
-                symbol: _this._ccxtInstance.markets_by_id[symbol]
-                    ? _this._ccxtInstance.markets_by_id[symbol].symbol
+                symbol: _this._ccxtInstance.marketsById[symbol]
+                    ? _this._ccxtInstance.marketsById[symbol].symbol
                     : symbol,
                 type: _this.getOrderType(data[6]),
             };
@@ -368,7 +368,9 @@ var bitfinex = /** @class */ (function (_super) {
                 return info[15] === positionType && info[1] === 'ACTIVE';
             })
                 .map(function (info) {
-                var symbol = _this._ccxtInstance.marketsById[info[0]].symbol;
+                var symbol = _this._ccxtInstance.marketsById[info[0]]
+                    ? _this._ccxtInstance.marketsById[info[0]].symbol
+                    : info[0];
                 // info[2]: Size of the position. A positive value indicates a long position;
                 // a negative value indicates a short position.
                 var amount = new decimal_js_1.default(info[2]).toNumber();

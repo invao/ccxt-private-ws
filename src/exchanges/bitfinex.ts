@@ -207,7 +207,7 @@ export class bitfinex extends BaseClient {
   };
 
   constructor(params: BitfinexConstructorParams & ExchangeConstructorOptionalParameters) {
-    super({ ...params, url: 'wss://api.bitfinex.com/ws/2', name: 'bitfinex' });
+    super({ ...params, url: 'wss://api.bitfinex.com/ws/2', name: 'bitfinex', exchangeType: 'bitfinex2' });
     this._walletType = this._walletType || 'spot';
 
     const balanceTypes = {
@@ -392,8 +392,8 @@ export class bitfinex extends BaseClient {
       datetime: moment(timestamp).toISOString(),
       order: data[3],
       side: data[4] > 0 ? 'buy' : 'sell',
-      symbol: this._ccxtInstance.markets_by_id[symbol]
-        ? this._ccxtInstance.markets_by_id[symbol].symbol
+      symbol: this._ccxtInstance.marketsById[symbol]
+        ? this._ccxtInstance.marketsById[symbol].symbol
         : symbol,
       type: this.getOrderType(data[6]),
     };
@@ -457,7 +457,9 @@ export class bitfinex extends BaseClient {
         return info[15] === positionType && info[1] === 'ACTIVE';
       })
       .map((info: any) => {
-        const symbol = this._ccxtInstance.marketsById[info[0]].symbol;
+        const symbol = this._ccxtInstance.marketsById[info[0]]
+          ? this._ccxtInstance.marketsById[info[0]].symbol
+          : info[0];
 
         // info[2]: Size of the position. A positive value indicates a long position;
         // a negative value indicates a short position.
