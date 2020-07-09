@@ -1,5 +1,5 @@
 import ccxt from 'ccxt';
-import { ExchangeName } from '.';
+import { ExchangeName, ExchangeType } from '.';
 export declare type Trade = {
     info: any;
     id: string;
@@ -85,6 +85,7 @@ export declare type PositionEvent = {
 export declare type WalletType = 'spot' | 'margin' | 'future';
 export declare type ExchangeConstructorParameters = {
     name: ExchangeName;
+    exchangeType?: ExchangeType;
     url: string;
     credentials: ExchangeCredentials;
 };

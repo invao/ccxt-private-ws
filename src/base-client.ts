@@ -7,14 +7,23 @@ import ReconnectingWebSocket from 'reconnecting-websocket';
 import uniqueRandom from 'unique-random';
 import WebSocket from 'ws';
 
-import { ExchangeName } from './';
+import { ExchangeName, ExchangeType } from './';
 import {
-  BalanceEvent, Exchange, ExchangeConstructorOptionalParameters, ExchangeConstructorParameters,
-  ExchangeCredentials, Order, OrderEvent, OrderInput, OrderListener, Trade, WalletType
+  BalanceEvent,
+  Exchange,
+  ExchangeConstructorOptionalParameters,
+  ExchangeConstructorParameters,
+  ExchangeCredentials,
+  Order,
+  OrderEvent,
+  OrderInput,
+  OrderListener,
+  Trade,
+  WalletType,
 } from './exchange';
 
 let ccxtInstance: Record<string, ccxt.Exchange> = {};
-const RECONNECT_DELAY=5000;
+const RECONNECT_DELAY = 5000;
 
 export abstract class BaseClient extends EventEmitter implements Exchange {
   // Class interface to be implemented by specific exchanges
@@ -57,11 +66,12 @@ export abstract class BaseClient extends EventEmitter implements Exchange {
     this._random = uniqueRandom(0, Math.pow(2, 31));
     this._debug = params.debug ? true : false;
 
-    if (!ccxtInstance[this._name]) {
-      ccxtInstance[this._name] = new { ...ccxt }[this._name]();
+    const exchangeType = params.exchangeType || params.name;
+    if (!ccxtInstance[exchangeType]) {
+      ccxtInstance[exchangeType] = new { ...ccxt }[exchangeType]();
     }
 
-    this._ccxtInstance = ccxtInstance[this._name];
+    this._ccxtInstance = ccxtInstance[exchangeType];
     this._subscribeFilter = [];
     this.subscriptionKeyMapping = {};
     this._orders = {};

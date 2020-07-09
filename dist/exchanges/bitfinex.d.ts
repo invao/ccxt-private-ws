@@ -26,5 +26,11 @@ export declare class bitfinex extends BaseClient {
     private parseOrderEventType;
     private parseOrderStatus;
     private parseBalance;
+    private parsePositions;
+    private isFutureSymbol;
+    private isFutureCurrency;
+    private isBalanceMatchingWalletType;
+    private isOrderMatchingWalletType;
+    private isTradeMatchingWalletType;
 }
 export {};

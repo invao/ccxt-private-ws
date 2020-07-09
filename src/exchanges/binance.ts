@@ -1,4 +1,5 @@
 import ccxt from 'ccxt';
+import Decimal from 'decimal.js';
 import moment from 'moment';
 import * as R from 'ramda';
 
@@ -370,7 +371,7 @@ export class binance extends BaseClient {
         break;
     }
 
-    this.setUrl(endpoint);  
+    this.setUrl(endpoint);
   };
 
   protected preConnect = async () => {
@@ -679,10 +680,10 @@ export class binance extends BaseClient {
         ? this._publicCcxtInstance.markets_by_id[rawPosition.s].symbol
         : rawPosition.s;
 
-      let markPrice = 0;
-      if (amount !== 0) {
-        markPrice = amount > 0 ? unrealizedPnL / amount + entryPrice : unrealizedPnL / amount - entryPrice;
-      }
+      const markPrice =
+        amount !== 0
+          ? new Decimal(entryPrice).plus(new Decimal(unrealizedPnL).div(amount).toString()).toNumber()
+          : 0;
 
       update.push({
         info: rawPosition,
